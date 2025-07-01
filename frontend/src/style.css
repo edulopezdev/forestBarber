@@ -1,0 +1,208 @@
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.p-toolbar {
+  border: none !important;
+  background-color: transparent; /* opcional */
+  padding: 0.5rem 1rem; /* opcional */
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  background: url("./src/assets/images/fondo.webp") no-repeat center center /
+    cover;
+  background-attachment: fixed; /* Fija la imagen de fondo */
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+}
+
+body::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7); /* Cambia el 0.5 por más o menos opacidad */
+  z-index: -1;
+}
+/* Evitar que el fondo se mueva al abrir el modal */
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* .swal2-container {
+  background-color: rgba(
+    167,
+    255,
+    177,
+    0.194
+  ) !important;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px); 
+} */
+
+.card {
+  padding: 2em;
+}
+
+#app {
+  width: 100vw; /* Ocupa todo el ancho */
+  height: 100vh; /* Ocupa todo el alto */
+  margin: 0; /* Elimina márgenes */
+  padding: 2rem;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
+:root {
+  --color-active-text: #28a745;
+}
+
+/* Estilo para el contenedor del dialog (máscara) */
+.p-dialog-mask {
+  background-color: rgba(0, 0, 0, 0.6); /* Fondo oscuro semi-transparente */
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 1050; /* asegura que esté arriba */
+}
+/* Contenido del diálogo */
+.p-dialog {
+  background-color: #1f1f1f !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  overflow-y: auto !important;
+  max-height: 90vh !important;
+}
+/* Estilo global para botones de cerrar tipo "X" */
+.btn-cerrar {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  z-index: 10;
+  transition: color 0.3s ease;
+  outline: none; /* para eliminar borde por defecto */
+}
+
+.btn-cerrar:hover {
+  color: #646cff;
+}
+
+.btn-cerrar:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.btn-cerrar:focus-visible {
+  outline: 2px dashed #646cff;
+  outline-offset: 3px;
+}
+/* Estilo global para botones de guardar*/
+.btn-guardar {
+  min-width: 140px !important;
+  padding: 0.6rem 1.6rem !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  width: auto !important;
+  max-width: none !important;
+
+  background-color: #278d44 !important; /* Azul oscuro más suave */
+  color: #f0f0f0 !important; /* Texto claro */
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  border: none !important;
+  text-align: center !important;
+  box-shadow: 0 2px 6px rgb(42 113 208 / 0.6) !important;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+.btn-guardar:hover {
+  background-color: #008c28 !important; /* Azul más oscuro en hover */
+  box-shadow: 0 4px 12px rgb(31 79 139 / 0.8) !important;
+}
+
+:deep(.btn-guardar) .p-button-label {
+  white-space: nowrap !important;
+  text-align: center !important;
+  width: 100%;
+}
+:deep(.contenedor-del-boton) {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+:deep(.btn-guardar) {
+  display: block !important;
+  margin: 0 auto !important;
+}

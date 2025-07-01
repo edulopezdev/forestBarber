@@ -1,0 +1,38 @@
+# Archivos de Visual Studio
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+
+# Archivos de configuración sensibles
+appsettings.json
+appsettings.Development.json
+.env
+
+# Archivos de bases de datos
+*.sql
+*.bak
+*.mdf
+*.sqlite
+
+# Node.js (para Vue.js)
+node_modules/
+dist/
+npm-debug.log
+yarn.lock
+
+# Postman (documentación de API)
+*.postman_collection.json
+
+# Logs y archivos temporales
+logs/
+*.log
+
+# Archivos generados por compilación
+*.dll
+*.exe
+*.pdb
+*.tmp
