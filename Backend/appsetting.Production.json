@@ -6,5 +6,12 @@
     "Key": "production-key-super-segura",
     "Issuer": "tu-dominio.com",
     "Audience": "tu-dominio.com"
+  },
+  "AllowedHosts": "forestbarber.site",
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
   }
 }
