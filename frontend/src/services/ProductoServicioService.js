@@ -6,7 +6,7 @@ import axios from "axios";
 // });
 
 //Camnio
-const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5042/api";
+const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 const apiClient = axios.create({
   baseURL: apiBaseURL,
 });
