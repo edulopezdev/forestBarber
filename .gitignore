@@ -10,7 +10,8 @@ obj/
 # Archivos de configuración sensibles
 appsettings.json
 appsettings.Development.json
-.env
+#Agregar .env.production
+#Agregar .env
 
 # Archivos de bases de datos
 *.sql

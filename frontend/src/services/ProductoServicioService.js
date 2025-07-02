@@ -1,7 +1,14 @@
 import axios from "axios";
 
+//Original
+// const apiClient = axios.create({
+//   baseURL: "http://localhost:5042/api",
+// });
+
+//Camnio
+const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5042/api";
 const apiClient = axios.create({
-  baseURL: "http://localhost:5042/api",
+  baseURL: apiBaseURL,
 });
 
 // Interceptor para agregar token si existe
