@@ -17,9 +17,17 @@ import "primeflex/primeflex.css";
 import ToastService from "primevue/toastservice";
 import Toast from "primevue/toast";
 
+const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5042/api";
+
 const apiClient = axios.create({
-  baseURL: "http://localhost:5042/api",
+  baseURL: apiBaseURL,
 });
+
+
+//Original
+// const apiClient = axios.create({
+//   baseURL: "http://localhost:5042/api",
+// });
 
 // Interceptor para incluir el token en cada petición
 apiClient.interceptors.request.use(
