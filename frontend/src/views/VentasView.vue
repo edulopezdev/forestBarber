@@ -26,7 +26,6 @@
           v-model:filters="filters"
           :value="ventas"
           :filterDisplay="mostrarFiltros ? 'row' : 'none'"
-          :globalFilterFields="['cliente', 'producto', 'fecha']"
           lazy
           paginator
           :rows="pageSize"
@@ -38,33 +37,43 @@
           @sort="onSort"
           @filter="onFilter"
         >
-          <Column field="cliente" sortable header="Cliente">
+          <!-- Cliente -->
+          <Column field="cliente" header="Cliente" sortable>
             <template #filter="{ filterModel, filterCallback }">
               <InputText
                 v-model="filterModel.value"
                 @input="filterCallback()"
-                placeholder="Buscar por cliente"
+                placeholder="Buscar cliente"
               />
             </template>
           </Column>
-          <Column field="producto" header="Producto" sortable>
+
+          <!-- Producto -->
+          <Column field="productoNombres" header="Producto" sortable>
+            <template #body="slotProps">
+              {{ slotProps.data.producto }}
+            </template>
             <template #filter="{ filterModel, filterCallback }">
               <InputText
                 v-model="filterModel.value"
                 @input="filterCallback()"
-                placeholder="Buscar por producto"
+                placeholder="Buscar producto"
               />
             </template>
           </Column>
+
+          <!-- Fecha -->
           <Column field="fecha" header="Fecha" sortable>
             <template #filter="{ filterModel, filterCallback }">
               <InputText
                 v-model="filterModel.value"
                 @input="filterCallback()"
-                placeholder="Buscar por fecha"
+                placeholder="Buscar fecha"
               />
             </template>
           </Column>
+
+          <!-- Monto Pagado -->
           <Column field="montoPagado" header="Monto Total" sortable>
             <template #body="slotProps">
               {{
@@ -75,7 +84,9 @@
               }}
             </template>
           </Column>
-          <Column field="estado" header="Estado">
+
+          <!-- Estado -->
+          <Column field="estado" header="Estado" sortable>
             <template #body="slotProps">
               <Tag
                 :value="slotProps.data.estado ? 'Pagado' : 'Pendiente'"
@@ -97,6 +108,8 @@
               />
             </template>
           </Column>
+
+          <!-- Acciones -->
           <Column header="Acciones" style="min-width: 180px">
             <template #body="slotProps">
               <div class="acciones-botones">
@@ -154,20 +167,20 @@
             </template>
           </Column>
         </DataTable>
-        <!-- Mensaje de cantidad total -->
+
+        <!-- Mensaje total ventas -->
         <div class="total-ventas" v-if="totalVentas > 0">
           Total de ventas registradas: {{ totalVentas }}
         </div>
       </template>
     </Card>
 
-    <!-- Modal Crear / Editar Venta -->
+    <!-- Modales -->
     <Dialog
       v-model:visible="mostrarModal"
       :header="ventaSeleccionada?.id ? 'Editar Venta' : 'Nueva Venta'"
       :modal="true"
       :closeOnEscape="false"
-      :closeOnBackdropClick="false"
       :closable="false"
       style="width: 700px"
     >
@@ -178,7 +191,6 @@
       />
     </Dialog>
 
-    <!-- Modal Detalle Venta -->
     <Dialog
       v-model:visible="mostrarDetalleModal"
       header="Detalle de la Venta"
@@ -197,7 +209,6 @@
       />
     </Dialog>
 
-    <!-- Modal Registrar Pago -->
     <Dialog
       v-model:visible="mostrarPagarModal"
       header="Registrar Pago"
@@ -216,10 +227,10 @@
           placeholder="Seleccione método"
           class="mb-3 w-full"
         />
-
-        <label :for="'monto'">
-          Monto a pagar (pendiente: {{ formatoMoneda(pagoForm.pendiente) }})
-        </label>
+        <label
+          >Monto a pagar (pendiente:
+          {{ formatoMoneda(pagoForm.pendiente) }})</label
+        >
         <InputText
           v-model="pagoForm.monto"
           type="text"
@@ -228,7 +239,6 @@
           class="w-full mb-2"
         />
         <small v-if="montoInvalido" class="p-error">{{ mensajeError }}</small>
-
         <div class="acciones-modal mt-4 flex justify-content-between">
           <Button
             label="Cancelar"
@@ -308,7 +318,7 @@ export default {
       ],
       filters: {
         cliente: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        producto: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        productoNombres: { value: null, matchMode: FilterMatchMode.CONTAINS }, // ✅ Ahora usa este campo
         fecha: { value: null, matchMode: FilterMatchMode.CONTAINS },
         estado: { value: null, matchMode: FilterMatchMode.EQUALS },
       },
@@ -321,28 +331,45 @@ export default {
     async obtenerVentas(page = 1, pageSize = 10) {
       this.loading = true;
       try {
-        const res = await VentaService.getVentas(page, pageSize);
+        const filtros = {
+          clienteNombre: this.filters.cliente?.value || undefined,
+          productoNombre: this.filters.productoNombres?.value || undefined,
+          fecha: this.filters.fecha?.value || undefined,
+          estadoPago:
+            this.filters.estado?.value !== null
+              ? this.filters.estado.value
+                ? "pagado"
+                : "pendiente"
+              : null,
+        };
+
+        const res = await VentaService.getVentas(
+          page,
+          pageSize,
+          filtros,
+          this.sortField,
+          this.sortOrder
+        );
+
         this.ventas = res.data.ventas.map((venta) => {
           const pagos = venta.pagos || [];
           const montoPagado = pagos.reduce((acc, p) => acc + p.monto, 0);
           const estado = montoPagado >= venta.totalVenta;
-          const primerPago = pagos.length > 0 ? pagos[0] : null;
+
+          const nombresProductos = venta.detalles.map((d) => d.nombreProducto);
+
           return {
             cliente: venta.clienteNombre,
-            producto: venta.detalles.map((d) => d.nombreProducto).join(", "),
+            producto: nombresProductos.join(", "),
+            productoNombres: nombresProductos,
             fecha: new Date(venta.fechaAtencion).toLocaleDateString(),
             estado,
             id: venta.atencionId,
             totalVenta: venta.totalVenta,
             montoPagado,
-            pago: primerPago
-              ? {
-                  metodoPago: primerPago.metodoPago,
-                  monto: primerPago.monto,
-                }
-              : null,
           };
         });
+
         this.totalVentas = res.data.pagination?.total || this.ventas.length;
         this.currentPage = page;
         this.pageSize = pageSize;
@@ -366,9 +393,8 @@ export default {
       this.obtenerVentas(1, this.pageSize);
     },
     crearVenta() {
-      this.ventaSeleccionada = this.nuevaVentaVacia(); // Siempre inicializa bien
+      this.ventaSeleccionada = this.nuevaVentaVacia();
       this.mostrarModal = true;
-      document.body.classList.add("modal-open");
     },
     nuevaVentaVacia() {
       return {
@@ -385,20 +411,20 @@ export default {
         );
         return;
       }
+
       this.loading = true;
       VentaService.getVentaById(venta.id)
         .then((res) => {
           const data = res.data.venta;
           if (!data.clienteId || data.clienteId <= 0) {
-            console.warn("ClienteId inválido o faltante:", data);
             Swal.fire("Error", "Cliente inválido o no encontrado.", "error");
             return;
           }
           if (!Array.isArray(data.detalles)) {
-            console.warn("Detalles de venta inválidos o faltantes:", data);
             Swal.fire("Error", "Detalles de venta no encontrados.", "error");
             return;
           }
+
           this.ventaSeleccionada = {
             id: data.atencionId,
             cliente: {
@@ -414,7 +440,6 @@ export default {
             total: data.totalVenta ?? 0.0,
           };
           this.mostrarModal = true;
-          document.body.classList.add("modal-open");
         })
         .catch((error) => {
           console.error("Error al cargar la venta:", error);
@@ -430,7 +455,6 @@ export default {
     },
     cerrarModal() {
       this.mostrarModal = false;
-      document.body.classList.remove("modal-open");
     },
     verDetalles(venta) {
       const atencionId = venta.id;
@@ -438,6 +462,7 @@ export default {
         Swal.fire("Error", "ID de venta no encontrado.", "error");
         return;
       }
+
       VentaService.getVentaById(atencionId)
         .then((res) => {
           const data = res.data.venta;
@@ -449,10 +474,10 @@ export default {
               Cantidad: d.cantidad,
               PrecioUnitario: d.precioUnitario,
               Subtotal: d.subtotal,
-              Observacion: d.observacion || '',
+              Observacion: d.observacion || "",
             })),
             TotalVenta: data.totalVenta,
-            Pagos: data.pagos || [],          
+            Pagos: data.pagos || [],
             AtencionId: atencionId,
           };
           this.mostrarDetalleModal = true;
@@ -514,8 +539,6 @@ export default {
       this.montoInvalido = false;
       this.mensajeError = "";
       this.mostrarPagarModal = true;
-      document.body.style.paddingRight = "15px";
-      document.body.classList.add("modal-open");
     },
     validarMonto() {
       const monto = parseFloat(this.pagoForm.monto);
@@ -549,8 +572,6 @@ export default {
         await VentaService.RegistrarPago(nuevoPago);
         this.cerrarPagarModal();
         this.obtenerVentas(this.currentPage, this.pageSize);
-
-        // Notificación de éxito
         Swal.fire({
           icon: "success",
           title: "Pago registrado",
@@ -577,8 +598,6 @@ export default {
       };
       this.montoInvalido = false;
       this.mensajeError = "";
-      document.body.classList.remove("modal-open");
-      document.body.style.paddingRight = "";
     },
     formatoMoneda(valor) {
       return new Intl.NumberFormat("es-AR", {
@@ -935,5 +954,4 @@ export default {
   border-radius: 12px !important; /* Bordes consistentes */
   text-align: center;
 }
-
 </style>

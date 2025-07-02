@@ -26,12 +26,26 @@ export default {
   },
 
   // Otros métodos que tengas para ventas, atención, etc, si los necesitas
-  getVentas(page = 1, pageSize = 10) {
-    return apiClient.get("/detalleatencion/ventas", {
-      params: { page, pageSize },
-    });
-  },
+  getVentas(
+    page = 1,
+    pageSize = 10,
+    filtros = {},
+    sortField = null,
+    sortOrder = null
+  ) {
+    const params = {
+      page,
+      pageSize,
+      ...filtros,
+    };
 
+    if (sortField) {
+      params.ordenarPor = sortField;
+      params.ordenDescendente = sortOrder === -1; // true si descendente
+    }
+
+    return apiClient.get("/detalleatencion/ventas", { params });
+  },
   getVentaById(atencionId) {
     return apiClient.get(`/detalleatencion/ventas/${atencionId}`);
   },

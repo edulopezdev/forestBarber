@@ -81,46 +81,126 @@ namespace backend.Controllers
             );
         }
 
-        // GET: api/detalleatencion/ventas
+        // GET: api/detalleatencion/ventas (Obtener lista de ventas con filtros y paginación)
         [HttpGet("ventas")]
-        public async Task<IActionResult> GetVentas(int page = 1, int pageSize = 10)
+        public async Task<IActionResult> GetVentas(
+            int page = 1,
+            int pageSize = 10,
+            string? clienteNombre = null,
+            int? productoServicioId = null,
+            string? productoNombre = null,
+            DateTime? fechaDesde = null,
+            DateTime? fechaHasta = null,
+            string ordenarPor = "fecha",
+            bool ordenDescendente = false,
+            decimal? montoMin = null,
+            decimal? montoMax = null
+        )
         {
-            var query = _context
-                .Atencion.Include(a => a.Cliente)
-                .ThenInclude(c => c.Rol)
-                .Include(a => a.DetalleAtencion)
-                .ThenInclude(d => d.ProductoServicio)
-                .Where(a => a.DetalleAtencion.Any());
+            try
+            {
+                var query = _context
+                    .Atencion.Include(a => a.Cliente)
+                    .Include(a => a.DetalleAtencion)
+                    .ThenInclude(d => d.ProductoServicio)
+                    .Where(a => a.DetalleAtencion.Any())
+                    .AsQueryable();
 
-            var totalVentas = await query.CountAsync();
-
-            var atenciones = await query
-                .OrderByDescending(a => a.Fecha)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .AsNoTracking() // esto es para evitar nulls, EF puede rastrear objetos, con esto lo evitamos
-                .ToListAsync();
-
-            var atencionIds = atenciones.Select(a => a.Id).ToList();
-
-            var pagos = await _context
-                .Pagos.Where(p => atencionIds.Contains(p.AtencionId))
-                .AsNoTracking()
-                .ToListAsync();
-
-            var ventas = atenciones
-                .Select(a => new VentaDto
+                // Filtrar por nombre de cliente
+                if (!string.IsNullOrEmpty(clienteNombre))
                 {
-                    AtencionId = a.Id,
-                    ClienteId = a.ClienteId,
-                    ClienteNombre = a.Cliente?.Nombre ?? "Cliente Desconocido",
-                    Cliente = new UsuarioResumenDto
-                    {
-                        Id = a.Cliente?.Id ?? 0,
-                        Nombre = a.Cliente?.Nombre ?? "Cliente Desconocido",
-                    },
-                    FechaAtencion = a.Fecha,
-                    Detalles = a
+                    clienteNombre = clienteNombre.Trim().ToLower();
+                    query = query.Where(a =>
+                        a.Cliente != null
+                        && a.Cliente.Nombre != null
+                        && a.Cliente.Nombre.ToLower().Contains(clienteNombre)
+                    );
+                }
+
+                // Filtrar por ID de producto
+                if (productoServicioId.HasValue)
+                {
+                    query = query.Where(a =>
+                        a.DetalleAtencion.Any(d => d.ProductoServicioId == productoServicioId.Value)
+                    );
+                }
+
+                // Filtrar por nombre de producto
+                if (!string.IsNullOrEmpty(productoNombre))
+                {
+                    productoNombre = productoNombre.Trim().ToLower();
+                    query = query.Where(a =>
+                        a.DetalleAtencion.Any(d =>
+                            d.ProductoServicio != null
+                            && d.ProductoServicio.Nombre != null
+                            && d.ProductoServicio.Nombre.ToLower().Contains(productoNombre)
+                        )
+                    );
+                }
+
+                // Filtrar por rango de fechas
+                if (fechaDesde.HasValue)
+                {
+                    query = query.Where(a => a.Fecha >= fechaDesde.Value.Date);
+                }
+
+                if (fechaHasta.HasValue)
+                {
+                    query = query.Where(a =>
+                        a.Fecha <= fechaHasta.Value.Date.AddDays(1).AddTicks(-1)
+                    );
+                }
+
+                // Ordenamiento
+                switch (ordenarPor.ToLower())
+                {
+                    case "cliente":
+                        query = ordenDescendente
+                            ? query.OrderByDescending(a => a.Cliente!.Nombre)
+                            : query.OrderBy(a => a.Cliente!.Nombre);
+                        break;
+                    case "monto":
+                        query = ordenDescendente
+                            ? query.OrderByDescending(a =>
+                                _context.Pagos.Where(p => p.AtencionId == a.Id).Sum(p => p.Monto)
+                            )
+                            : query.OrderBy(a =>
+                                _context.Pagos.Where(p => p.AtencionId == a.Id).Sum(p => p.Monto)
+                            );
+                        break;
+                    default:
+                        query = ordenDescendente
+                            ? query.OrderByDescending(a => a.Fecha)
+                            : query.OrderBy(a => a.Fecha);
+                        break;
+                }
+
+                // Conteo total de ventas filtradas
+                var totalFiltrado = await query.CountAsync();
+
+                // Paginación
+                var atenciones = await query
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                // Proyección final
+                var ventasFinal = new List<object>();
+                foreach (var atencion in atenciones)
+                {
+                    // Obtener pagos de esta atención
+                    var pagosVenta = await _context
+                        .Pagos.Where(p => p.AtencionId == atencion.Id)
+                        .Select(p => new PagoInfoDto
+                        {
+                            PagoId = p.Id,
+                            MetodoPago = p.MetodoPago.ToString(),
+                            Monto = p.Monto,
+                            FechaPago = p.Fecha,
+                        })
+                        .ToListAsync();
+
+                    var detalles = atencion
                         .DetalleAtencion.Select(d => new DetalleVentaDto
                         {
                             ProductoServicioId = d.ProductoServicioId,
@@ -130,37 +210,58 @@ namespace backend.Controllers
                             PrecioUnitario = d.PrecioUnitario,
                             Observacion = d.Observacion,
                         })
-                        .ToList(),
-                    Pagos = pagos
-                        .Where(p => p.AtencionId == a.Id)
-                        .Select(p => new PagoInfoDto
-                        {
-                            PagoId = p.Id,
-                            MetodoPago = p.MetodoPago.ToString(),
-                            Monto = p.Monto,
-                            FechaPago = p.Fecha,
-                        })
-                        .ToList(),
-                })
-                .ToList();
+                        .ToList();
 
-            return Ok(
-                new
-                {
-                    status = 200,
-                    message = totalVentas > 0
-                        ? "Ventas obtenidas correctamente."
-                        : "No hay ventas registradas.",
-                    pagination = new
-                    {
-                        totalPages = (int)Math.Ceiling((double)totalVentas / pageSize),
-                        currentPage = page,
-                        pageSize,
-                        total = totalVentas,
-                    },
-                    ventas = ventas,
+                    var totalVenta = detalles.Sum(d => d.Subtotal);
+                    var totalPagado = pagosVenta.Sum(p => p.Monto);
+
+                    ventasFinal.Add(
+                        new
+                        {
+                            atencion.Id,
+                            atencion.ClienteId,
+                            ClienteNombre = atencion.Cliente?.Nombre ?? "Cliente Desconocido",
+                            FechaAtencion = atencion.Fecha,
+                            Detalles = detalles,
+                            TotalVenta = totalVenta,
+                            Pagos = pagosVenta,
+                            MontoPagado = totalPagado,
+                            EstadoPago = totalPagado >= totalVenta ? "Completo" : "Pendiente",
+                        }
+                    );
                 }
-            );
+
+                return Ok(
+                    new
+                    {
+                        status = 200,
+                        message = ventasFinal.Any()
+                            ? "Ventas obtenidas correctamente."
+                            : "No hay ventas registradas.",
+                        pagination = new
+                        {
+                            totalPages = (int)Math.Ceiling((double)totalFiltrado / pageSize),
+                            currentPage = page,
+                            pageSize,
+                            total = totalFiltrado,
+                        },
+                        ventas = ventasFinal,
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    500,
+                    new
+                    {
+                        status = 500,
+                        error = "Internal Server Error",
+                        message = "Ocurrió un error al obtener las ventas.",
+                        details = ex.Message,
+                    }
+                );
+            }
         }
 
         // GET: api/detalleatencion/ventas/{id}
