@@ -49,7 +49,7 @@
           </Column>
 
           <!-- Producto -->
-          <Column field="productoNombres" header="Producto" sortable>
+          <Column field="productoNombres" header="Producto">
             <template #body="slotProps">
               {{ slotProps.data.producto }}
             </template>
@@ -318,7 +318,7 @@ export default {
       ],
       filters: {
         cliente: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        productoNombres: { value: null, matchMode: FilterMatchMode.CONTAINS }, // ✅ Ahora usa este campo
+        productoNombres: { value: null, matchMode: FilterMatchMode.CONTAINS },
         fecha: { value: null, matchMode: FilterMatchMode.CONTAINS },
         estado: { value: null, matchMode: FilterMatchMode.EQUALS },
       },
@@ -343,21 +343,21 @@ export default {
               : null,
         };
 
+        const ordenDescendente = this.sortOrder === -1;
+
         const res = await VentaService.getVentas(
           page,
           pageSize,
           filtros,
           this.sortField,
-          this.sortOrder
+          ordenDescendente
         );
 
         this.ventas = res.data.ventas.map((venta) => {
           const pagos = venta.pagos || [];
           const montoPagado = pagos.reduce((acc, p) => acc + p.monto, 0);
           const estado = montoPagado >= venta.totalVenta;
-
           const nombresProductos = venta.detalles.map((d) => d.nombreProducto);
-
           return {
             cliente: venta.clienteNombre,
             producto: nombresProductos.join(", "),
@@ -381,27 +381,33 @@ export default {
         this.loading = false;
       }
     },
+
     onPageChange(event) {
       this.obtenerVentas(event.page + 1, event.rows);
     },
+
     onSort(event) {
-      this.sortField = event.sortField;
+      this.sortField = event.sortField; // Guardamos el campo original (cliente, montoPagado, fecha)
       this.sortOrder = event.sortOrder;
-      this.obtenerVentas(this.currentPage, this.pageSize);
+      this.obtenerVentas(1, this.pageSize);
     },
+
     onFilter() {
       this.obtenerVentas(1, this.pageSize);
     },
+
     crearVenta() {
       this.ventaSeleccionada = this.nuevaVentaVacia();
       this.mostrarModal = true;
     },
+
     nuevaVentaVacia() {
       return {
         cliente: null,
         detalles: [],
       };
     },
+
     editarVenta(venta) {
       if (!venta.id) {
         Swal.fire(
@@ -439,6 +445,7 @@ export default {
             })),
             total: data.totalVenta ?? 0.0,
           };
+
           this.mostrarModal = true;
         })
         .catch((error) => {
@@ -453,9 +460,11 @@ export default {
           this.loading = false;
         });
     },
+
     cerrarModal() {
       this.mostrarModal = false;
     },
+
     verDetalles(venta) {
       const atencionId = venta.id;
       if (!atencionId) {
@@ -490,6 +499,7 @@ export default {
           );
         });
     },
+
     guardarVenta(data) {
       if (!data.cliente || !data.detalles || data.detalles.length === 0) {
         Swal.fire(
@@ -528,6 +538,7 @@ export default {
           Swal.fire("Error", "No se pudo registrar la venta.", "error");
         });
     },
+
     pagarDialog(venta) {
       const pendiente = venta.totalVenta - (venta.montoPagado || 0);
       this.ventaSeleccionadaParaPago = venta;
@@ -540,6 +551,7 @@ export default {
       this.mensajeError = "";
       this.mostrarPagarModal = true;
     },
+
     validarMonto() {
       const monto = parseFloat(this.pagoForm.monto);
       if (isNaN(monto) || monto <= 0) {
@@ -557,6 +569,7 @@ export default {
       this.montoInvalido = false;
       this.mensajeError = "";
     },
+
     async registrarPago() {
       this.validarMonto();
       if (this.montoInvalido || !this.pagoForm.metodo) return;
@@ -572,6 +585,7 @@ export default {
         await VentaService.RegistrarPago(nuevoPago);
         this.cerrarPagarModal();
         this.obtenerVentas(this.currentPage, this.pageSize);
+
         Swal.fire({
           icon: "success",
           title: "Pago registrado",
@@ -588,6 +602,7 @@ export default {
         Swal.fire("Error", "No se pudo registrar el pago.", "error");
       }
     },
+
     cerrarPagarModal() {
       this.mostrarPagarModal = false;
       this.ventaSeleccionadaParaPago = null;
@@ -599,6 +614,7 @@ export default {
       this.montoInvalido = false;
       this.mensajeError = "";
     },
+
     formatoMoneda(valor) {
       return new Intl.NumberFormat("es-AR", {
         style: "currency",

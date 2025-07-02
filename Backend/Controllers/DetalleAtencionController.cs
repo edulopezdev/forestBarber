@@ -92,7 +92,7 @@ namespace backend.Controllers
             DateTime? fechaDesde = null,
             DateTime? fechaHasta = null,
             string ordenarPor = "fecha",
-            bool ordenDescendente = false,
+            bool ordenDescendente = true, // POR DEFECTO: ventas recientes arriba
             decimal? montoMin = null,
             decimal? montoMax = null
         )
@@ -106,7 +106,7 @@ namespace backend.Controllers
                     .Where(a => a.DetalleAtencion.Any())
                     .AsQueryable();
 
-                // Filtrar por nombre de cliente
+                // Filtro: nombre cliente
                 if (!string.IsNullOrEmpty(clienteNombre))
                 {
                     clienteNombre = clienteNombre.Trim().ToLower();
@@ -117,7 +117,7 @@ namespace backend.Controllers
                     );
                 }
 
-                // Filtrar por ID de producto
+                // Filtro: ID producto
                 if (productoServicioId.HasValue)
                 {
                     query = query.Where(a =>
@@ -125,7 +125,7 @@ namespace backend.Controllers
                     );
                 }
 
-                // Filtrar por nombre de producto
+                // Filtro: nombre producto
                 if (!string.IsNullOrEmpty(productoNombre))
                 {
                     productoNombre = productoNombre.Trim().ToLower();
@@ -138,7 +138,7 @@ namespace backend.Controllers
                     );
                 }
 
-                // Filtrar por rango de fechas
+                // Filtro: fecha desde/hasta
                 if (fechaDesde.HasValue)
                 {
                     query = query.Where(a => a.Fecha >= fechaDesde.Value.Date);
@@ -156,9 +156,12 @@ namespace backend.Controllers
                 {
                     case "cliente":
                         query = ordenDescendente
-                            ? query.OrderByDescending(a => a.Cliente!.Nombre)
-                            : query.OrderBy(a => a.Cliente!.Nombre);
+                            ? query.OrderByDescending(a =>
+                                a.Cliente != null ? a.Cliente.Nombre : ""
+                            )
+                            : query.OrderBy(a => a.Cliente != null ? a.Cliente.Nombre : "");
                         break;
+
                     case "monto":
                         query = ordenDescendente
                             ? query.OrderByDescending(a =>
@@ -168,27 +171,24 @@ namespace backend.Controllers
                                 _context.Pagos.Where(p => p.AtencionId == a.Id).Sum(p => p.Monto)
                             );
                         break;
-                    default:
+                    default: // fecha
                         query = ordenDescendente
                             ? query.OrderByDescending(a => a.Fecha)
                             : query.OrderBy(a => a.Fecha);
                         break;
                 }
 
-                // Conteo total de ventas filtradas
                 var totalFiltrado = await query.CountAsync();
 
-                // Paginación
                 var atenciones = await query
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
 
-                // Proyección final
                 var ventasFinal = new List<object>();
+
                 foreach (var atencion in atenciones)
                 {
-                    // Obtener pagos de esta atención
                     var pagosVenta = await _context
                         .Pagos.Where(p => p.AtencionId == atencion.Id)
                         .Select(p => new PagoInfoDto
@@ -218,7 +218,7 @@ namespace backend.Controllers
                     ventasFinal.Add(
                         new
                         {
-                            atencion.Id,
+                            atencionId = atencion.Id,
                             atencion.ClienteId,
                             ClienteNombre = atencion.Cliente?.Nombre ?? "Cliente Desconocido",
                             FechaAtencion = atencion.Fecha,
