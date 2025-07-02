@@ -8,10 +8,9 @@ obj/
 *.log
 
 # Archivos de configuración sensibles
-appsettings.json
-appsettings.Development.json
-#Agregar .env.production
-#Agregar .env
+#appsettings.json
+#appsettings.Development.json
+.env
 
 # Archivos de bases de datos
 *.sql
