@@ -8,8 +8,8 @@ obj/
 *.log
 
 # Archivos de configuración sensibles
-appsettings.json
-appsettings.Development.json
+#appsettings.json
+#appsettings.Development.json
 .env
 
 # Archivos de bases de datos
