@@ -259,7 +259,7 @@ export default {
     getRutaImagen(ruta) {
       if (!ruta) return "/img/no-image.png";
       const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
       const fullUrl = ruta.startsWith("http")
         ? ruta
         : `${baseUrl}${ruta.startsWith("/") ? "" : "/"}${ruta}`;

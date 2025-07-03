@@ -54,7 +54,7 @@ export default {
       if (!usuario) return null;
 
       const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
       const avatar =
         usuario.avatar && usuario.avatar.trim()

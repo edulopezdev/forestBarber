@@ -44,7 +44,7 @@ export default {
         return;
       }
 
-      const url = "http://localhost:5042/api/auth/login";
+      const url = "http://localhost:5000/api/auth/login";
 
       Swal.fire({
         title: "Iniciando sesión...",

@@ -249,7 +249,7 @@ export default {
       if (this.previewAvatar) return this.previewAvatar;
       if (this.form.avatar) {
         const baseUrl =
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
         return this.form.avatar.startsWith("http")
           ? this.form.avatar
           : `${baseUrl}${this.form.avatar}`;

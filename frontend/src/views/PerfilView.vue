@@ -132,7 +132,7 @@ export default {
         return "/avatars/no_avatar.jpg";
       }
       const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
       return `${baseUrl.replace(/\/$/, "")}/${this.usuarioActual.avatar.replace(
         /^\//,
         ""

@@ -101,7 +101,7 @@ export default {
     getRutaImagen(ruta) {
       if (!ruta) return "/img/no-image.jpg";
       const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
       return ruta.startsWith("http") ? ruta : `${baseUrl}${ruta}`;
     },
   },

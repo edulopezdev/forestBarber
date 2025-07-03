@@ -3,7 +3,7 @@ import axios from "axios";
 
 // crear una instancia personalizada de axios con configuracion base
 const apiClient = axios.create({
-  baseURL: "http://localhost:5042/api", // URL base de nuestra API en ASP.NET Core
+  baseURL: "http://localhost:5000/api", // URL base de nuestra API en ASP.NET Core
   headers: {
     "Content-Type": "application/json", //aca le indicamos q los datos se van a enviar en formato JSON
   },

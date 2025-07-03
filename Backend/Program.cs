@@ -55,8 +55,9 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
             "http://localhost:5173", // Desarrollo
+            "http://127.0.0.1:5000", // Desarrollo
             "https://forestbarber.site", // Producción
-            "http://forestbarber.site", // Producción
+            "http://forestbarber.site" // Producción
         )
         .AllowAnyMethod()
         .AllowAnyHeader()
@@ -166,7 +167,7 @@ app.UseStaticFiles();
 app.UseAuthentication();
 
 // Aplica la política de CORS después de autenticación pero antes de autorización
-app.UseCors(corsPolicy);
+app.UseCors("AllowFrontend");
 
 app.UseAuthorization();
 
@@ -204,7 +205,10 @@ app.MapGet(
     .WithOpenApi();
 
 app.MapControllers(); // esto es para habilitar los enroutadores de los controladores
-app.Run();
+//Original
+// app.Run();
+//Cambio
+app.Run("http://localhost:5000");
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {

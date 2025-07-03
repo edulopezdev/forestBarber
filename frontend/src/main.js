@@ -27,7 +27,7 @@ const apiClient = axios.create({
 
 //Original
 // const apiClient = axios.create({
-//   baseURL: "http://localhost:5042/api",
+//   baseURL: "http://localhost:5000/api",
 // });
 
 // Interceptor para incluir el token en cada petición
