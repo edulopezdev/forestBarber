@@ -1,7 +1,17 @@
 import axios from "axios";
+//Original
+// const apiClient = axios.create({
+//   baseURL: "http://localhost:5000/api",
+//   headers: {
+//     "Content-Type": "application/json",
+//   },
+// });
+
+//Cambio
+const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 const apiClient = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: apiBaseURL,
   headers: {
     "Content-Type": "application/json",
   },
