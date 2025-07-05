@@ -14,6 +14,9 @@ import VentasView from "../views/VentasView.vue";
 import VentaForm from "../components/VentaForm.vue";
 import VentaDetalle from "../components/VentaDetalle.vue";
 
+import ReportesView from "../views/ReportesView.vue";
+import ReportesForm from "../components/ReportesForm.vue";
+
 import PerfilView from "../views/PerfilView.vue";
 
 import LoginView from "../views/LoginView.vue";
@@ -116,6 +119,12 @@ const routes = [
     name: "VentaNueva",
     component: VentaForm,
     meta: { requiresAuth: true, requiredRole: ["Administrador", "Barbero"] },
+  },
+  {
+    path: "/reportes",
+    name: "Reportes",
+    component: ReportesView,
+    meta: { requiresAuth: true, requiredRole: ["Administrador"] },
   },
   {
     path: "/ventas/:id/detalle",

@@ -18,5 +18,10 @@ namespace backend.Models
 
         [Required]
         public int EstadoId { get; set; }
+
+        // Propiedades de navegación
+        public virtual Usuario? Cliente { get; set; }
+        public virtual Usuario? Barbero { get; set; }
+        public virtual EstadoTurno? EstadoTurno { get; set; }
     }
 }
