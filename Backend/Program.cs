@@ -32,17 +32,39 @@ builder.Logging.SetMinimumLevel(LogLevel.Information); // para tu código, info+
 //--- Servicios ---//
 
 // Configurar CORS antes de construir la aplicación
-var corsPolicy = "_myAllowSpecificOrigins";
+//Original
+// var corsPolicy = "_myAllowSpecificOrigins";
+// builder.Services.AddCors(options =>
+// {
+//     options.AddPolicy( //aca lo q hacemos es crear un policy con el nombre "_myAllowSpecificOrigins"
+//         corsPolicy,
+//         policy =>
+//         {
+//             policy
+//                 .WithOrigins("http://localhost:5173") // entonces aca estamos diciendo que permitimos q la url http://localhost:5173 haga peticiones
+//                 .AllowAnyMethod() // esto es para permitir cualquier metodo (http, post, put, delete, etc.)
+//                 .AllowAnyHeader(); // esto es para permitir cualquier header de la peticion (http, content-type, authorization, etc.)
+//         }
+//     );
+// });
+
+//Cambio
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy( //aca lo q hacemos es crear un policy con el nombre "_myAllowSpecificOrigins"
-        corsPolicy,
+    options.AddPolicy(
+        "AllowFrontend",
         policy =>
         {
             policy
-                .WithOrigins("http://localhost:5173") // entonces aca estamos diciendo que permitimos q la url http://localhost:5173 haga peticiones
-                .AllowAnyMethod() // esto es para permitir cualquier metodo (http, post, put, delete, etc.)
-                .AllowAnyHeader(); // esto es para permitir cualquier header de la peticion (http, content-type, authorization, etc.)
+                .WithOrigins(
+                    "http://localhost:5173", // Desarrollo
+                    "http://127.0.0.1:5000", // Desarrollo
+                    "https://forestbarber.site", // Producción
+                    "http://forestbarber.site" // Producción
+                )
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials();
         }
     );
 });
@@ -149,7 +171,7 @@ app.UseStaticFiles();
 app.UseAuthentication();
 
 // Aplica la política de CORS después de autenticación pero antes de autorización
-app.UseCors(corsPolicy);
+app.UseCors("AllowFrontend");
 
 app.UseAuthorization();
 
@@ -187,7 +209,11 @@ app.MapGet(
     .WithOpenApi();
 
 app.MapControllers(); // esto es para habilitar los enroutadores de los controladores
-app.Run();
+
+//Original
+// app.Run();
+//Cambio
+app.Run("http://localhost:5000");
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {

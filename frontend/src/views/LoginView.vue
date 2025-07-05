@@ -44,7 +44,8 @@ export default {
         return;
       }
 
-      const url = "http://localhost:5042/api/auth/login";
+      const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+      const url = `${apiBaseURL}/auth/login`;
 
       Swal.fire({
         title: "Iniciando sesión...",

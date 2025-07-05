@@ -257,7 +257,7 @@ export default {
       if (this.previewImagen) return this.previewImagen;
       if (this.form.imagen) {
         const baseUrl =
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
         return this.form.imagen.startsWith("http")
           ? this.form.imagen
           : `${baseUrl}${this.form.imagen}`;

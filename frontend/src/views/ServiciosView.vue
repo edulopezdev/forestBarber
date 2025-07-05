@@ -258,14 +258,18 @@ export default {
     },
     getRutaImagen(ruta) {
       if (!ruta) return "/img/no-image.png";
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
+
+      const apiBase =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+      const imageBase = apiBase.replace(/\/api\/?$/, ""); // quita el `/api` del final
+
       const fullUrl = ruta.startsWith("http")
         ? ruta
-        : `${baseUrl}${ruta.startsWith("/") ? "" : "/"}${ruta}`;
+        : `${imageBase}${ruta.startsWith("/") ? "" : "/"}${ruta}`;
+
+      console.log("Imagen URL corregida:", fullUrl);
       return fullUrl;
     },
-
     abrirModalNuevo() {
       this.servicioSeleccionado = null;
       this.mostrarModal = true;

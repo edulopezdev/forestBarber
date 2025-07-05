@@ -1,11 +1,21 @@
 // importar axios, libreria que se usa para hacer peticiones HTTP (AJAX) desde el frontend
 import axios from "axios";
 
-// crear una instancia personalizada de axios con configuracion base
+//Original
+// const apiClient = axios.create({
+//   baseURL: "http://localhost:5000/api",
+//   headers: {
+//     "Content-Type": "application/json",
+//   },
+// });
+
+//Cambio
+const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+
 const apiClient = axios.create({
-  baseURL: "http://localhost:5042/api", // URL base de nuestra API en ASP.NET Core
+  baseURL: apiBaseURL,
   headers: {
-    "Content-Type": "application/json", //aca le indicamos q los datos se van a enviar en formato JSON
+    "Content-Type": "application/json",
   },
 });
 

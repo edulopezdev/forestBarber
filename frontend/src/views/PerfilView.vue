@@ -131,12 +131,12 @@ export default {
       if (!this.usuarioActual || !this.usuarioActual.avatar) {
         return "/avatars/no_avatar.jpg";
       }
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
-      return `${baseUrl.replace(/\/$/, "")}/${this.usuarioActual.avatar.replace(
-        /^\//,
-        ""
-      )}`;
+
+      const apiBase =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      const imageBase = apiBase.replace(/\/api\/?$/, ""); // quitar /api
+
+      return `${imageBase}/${this.usuarioActual.avatar.replace(/^\//, "")}`;
     },
   },
   mounted() {
