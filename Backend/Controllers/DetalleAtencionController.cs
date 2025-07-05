@@ -99,12 +99,23 @@ namespace backend.Controllers
         {
             try
             {
+                _logger.LogInformation(
+                    "Llamada a GetVentas con parámetros: page={Page}, pageSize={PageSize}, clienteNombre={ClienteNombre}, ordenarPor={OrdenarPor}, ordenDescendente={OrdenDescendente}",
+                    page,
+                    pageSize,
+                    clienteNombre ?? "(null)",
+                    ordenarPor,
+                    ordenDescendente
+                );
+
                 var query = _context
                     .Atencion.Include(a => a.Cliente)
                     .Include(a => a.DetalleAtencion)
                     .ThenInclude(d => d.ProductoServicio)
                     .Where(a => a.DetalleAtencion.Any())
                     .AsQueryable();
+
+                _logger.LogInformation("Consulta inicial construida.");
 
                 // Filtro: nombre cliente
                 if (!string.IsNullOrEmpty(clienteNombre))
@@ -151,39 +162,61 @@ namespace backend.Controllers
                     );
                 }
 
-                // Ordenamiento
-                switch (ordenarPor.ToLower())
-                {
-                    case "cliente":
-                        query = ordenDescendente
-                            ? query.OrderByDescending(a =>
-                                a.Cliente != null ? a.Cliente.Nombre : ""
-                            )
-                            : query.OrderBy(a => a.Cliente != null ? a.Cliente.Nombre : "");
-                        break;
-
-                    case "monto":
-                        query = ordenDescendente
-                            ? query.OrderByDescending(a =>
-                                _context.Pagos.Where(p => p.AtencionId == a.Id).Sum(p => p.Monto)
-                            )
-                            : query.OrderBy(a =>
-                                _context.Pagos.Where(p => p.AtencionId == a.Id).Sum(p => p.Monto)
-                            );
-                        break;
-                    default: // fecha
-                        query = ordenDescendente
-                            ? query.OrderByDescending(a => a.Fecha)
-                            : query.OrderBy(a => a.Fecha);
-                        break;
-                }
+                // Log de la consulta SQL generada (EF Core 5+)
+                _logger.LogInformation(
+                    "Consulta SQL sin orden ni paginado: {Query}",
+                    query.ToQueryString()
+                );
 
                 var totalFiltrado = await query.CountAsync();
+                _logger.LogInformation("Total registros filtrados: {TotalFiltrado}", totalFiltrado);
 
+                // Traemos solo la página sin ordenar (para evitar problemas con subconsultas en OrderBy)
                 var atenciones = await query
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
+
+                _logger.LogInformation(
+                    "Resultados obtenidos sin ordenar: {Count}",
+                    atenciones.Count
+                );
+
+                // Ordenamiento en memoria
+                switch (ordenarPor.ToLower())
+                {
+                    case "cliente":
+                        atenciones = ordenDescendente
+                            ? atenciones.OrderByDescending(a => a.Cliente?.Nombre ?? "").ToList()
+                            : atenciones.OrderBy(a => a.Cliente?.Nombre ?? "").ToList();
+                        break;
+
+                    case "monto":
+                        atenciones = ordenDescendente
+                            ? atenciones
+                                .OrderByDescending(a =>
+                                    _context
+                                        .Pagos.Where(p => p.AtencionId == a.Id)
+                                        .Sum(p => p.Monto)
+                                )
+                                .ToList()
+                            : atenciones
+                                .OrderBy(a =>
+                                    _context
+                                        .Pagos.Where(p => p.AtencionId == a.Id)
+                                        .Sum(p => p.Monto)
+                                )
+                                .ToList();
+                        break;
+
+                    default: // fecha
+                        atenciones = ordenDescendente
+                            ? atenciones.OrderByDescending(a => a.Fecha).ToList()
+                            : atenciones.OrderBy(a => a.Fecha).ToList();
+                        break;
+                }
+
+                _logger.LogInformation("Resultados ordenados en memoria.");
 
                 var ventasFinal = new List<object>();
 
@@ -231,6 +264,11 @@ namespace backend.Controllers
                     );
                 }
 
+                _logger.LogInformation(
+                    "Ventas procesadas para respuesta: {Count}",
+                    ventasFinal.Count
+                );
+
                 return Ok(
                     new
                     {
@@ -251,6 +289,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error en GetVentas");
                 return StatusCode(
                     500,
                     new

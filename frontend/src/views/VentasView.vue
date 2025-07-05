@@ -33,6 +33,8 @@
           :totalRecords="totalVentas"
           tableStyle="min-width: 100%"
           :loading="loading"
+          :sortField="sortField"
+          :sortOrder="sortOrder"
           @page="onPageChange"
           @sort="onSort"
           @filter="onFilter"
@@ -330,6 +332,7 @@ export default {
   methods: {
     async obtenerVentas(page = 1, pageSize = 10) {
       this.loading = true;
+
       try {
         const filtros = {
           clienteNombre: this.filters.cliente?.value || undefined,
@@ -342,15 +345,21 @@ export default {
                 : "pendiente"
               : null,
         };
-
         const ordenDescendente = this.sortOrder === -1;
+        VentaService.getVentas(
+          page,
+          pageSize,
+          filtros,
+          this.sortField,
+          ordenDescendente
+        );
 
         const res = await VentaService.getVentas(
           page,
           pageSize,
           filtros,
           this.sortField,
-          ordenDescendente
+          this.sortOrder === 1 ? "asc" : this.sortOrder === -1 ? "desc" : null
         );
 
         this.ventas = res.data.ventas.map((venta) => {
@@ -387,7 +396,7 @@ export default {
     },
 
     onSort(event) {
-      this.sortField = event.sortField; // Guardamos el campo original (cliente, montoPagado, fecha)
+      this.sortField = event.sortField;
       this.sortOrder = event.sortOrder;
       this.obtenerVentas(1, this.pageSize);
     },

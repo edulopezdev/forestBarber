@@ -41,7 +41,7 @@ export default {
 
     if (sortField) {
       params.ordenarPor = sortField;
-      params.ordenDescendente = sortOrder === -1; // true si descendente
+      params.ordenDescendente = sortOrder === true; // o simplemente sortOrder
     }
 
     return apiClient.get("/detalleatencion/ventas", { params });
