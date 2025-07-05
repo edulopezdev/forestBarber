@@ -56,9 +56,11 @@ export default {
       const baseUrl =
         import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
+      const imageBaseUrl = baseUrl.replace(/\/api\/?$/, ""); // quitar /api
+
       const avatar =
         usuario.avatar && usuario.avatar.trim()
-          ? `${baseUrl.replace(/\/$/, "")}/${usuario.avatar.replace(/^\//, "")}`
+          ? `${imageBaseUrl}/${usuario.avatar.replace(/^\//, "")}`
           : "/avatars/no_avatar.jpg";
 
       return {
