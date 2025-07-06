@@ -54,7 +54,7 @@
     <!-- Cantidad (solo visible si es almacenable) -->
     <div
       class="campo"
-      v-if="form.esAlmacenable"
+      v-if="form.esAlmacenable && !esServicio"
       :class="{ error: errores.cantidad }"
     >
       <label for="cantidad">Cantidad</label>
