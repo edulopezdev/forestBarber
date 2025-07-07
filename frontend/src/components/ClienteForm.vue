@@ -2,27 +2,26 @@
   <div class="formulario-cliente">
     <h3>{{ cliente?.id ? "Editar Cliente" : "Nuevo Cliente" }}</h3>
 
-    <div class="campo" :class="{ 'error': errores.nombre }">
-      <label for="nombre">
-        Nombre <span class="obligatorio">*</span>
-      </label>
+    <div class="campo" :class="{ error: errores.nombre }">
+      <label for="nombre"> Nombre <span class="obligatorio">*</span> </label>
       <InputText id="nombre" v-model="form.nombre" />
       <div v-if="errores.nombre" class="error-msg">
         <i class="pi pi-exclamation-triangle"></i> {{ errores.nombre }}
       </div>
     </div>
 
-    <div class="campo" :class="{ 'error': errores.email }">
+    <div class="campo" :class="{ error: errores.email }">
       <label for="email">
-        Email <span class="obligatorio">*</span>
+        Email <span v-if="form.accedeAlSistema" class="obligatorio">*</span>
       </label>
+
       <InputText id="email" v-model="form.email" />
       <div v-if="errores.email" class="error-msg">
         <i class="pi pi-exclamation-triangle"></i> {{ errores.email }}
       </div>
     </div>
 
-    <div class="campo" :class="{ 'error': errores.telefono }">
+    <div class="campo" :class="{ error: errores.telefono }">
       <label for="telefono">
         Teléfono <span class="obligatorio">*</span>
       </label>
@@ -136,15 +135,26 @@ export default {
         this.errores.nombre = "El nombre es obligatorio.";
         valido = false;
       }
-      if (!this.form.email.trim()) {
-        this.errores.email = "El email es obligatorio.";
-        valido = false;
-      } else if (!this.validarEmail(this.form.email)) {
+      if (this.form.accedeAlSistema) {
+        if (!this.form.email.trim()) {
+          this.errores.email =
+            "El email es obligatorio para usuarios con acceso.";
+          valido = false;
+        } else if (!this.validarEmail(this.form.email)) {
+          this.errores.email = "El email no es válido.";
+          valido = false;
+        }
+      } else if (
+        this.form.email.trim() &&
+        !this.validarEmail(this.form.email)
+      ) {
         this.errores.email = "El email no es válido.";
         valido = false;
       }
+
       if (!this.form.telefono.trim()) {
-        this.errores.telefono = "El teléfono es obligatorio y debe contener solo números.";
+        this.errores.telefono =
+          "El teléfono es obligatorio y debe contener solo números.";
         valido = false;
       }
 
