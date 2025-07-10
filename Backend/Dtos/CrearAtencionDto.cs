@@ -4,7 +4,6 @@ namespace backend.Dtos
     {
         public int ClienteId { get; set; }
         public DateTime? Fecha { get; set; }
-        public decimal Total { get; set; }
         public List<DetalleAtencionDto> Detalles { get; set; } = new();
     }
 }

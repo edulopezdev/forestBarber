@@ -18,10 +18,6 @@ namespace backend.Dtos
         public DateTime Fecha { get; set; }
 
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "El total debe ser mayor o igual a cero")]
-        public decimal Total { get; set; }
-
-        [Required]
         public List<DetalleAtencionDto> DetalleAtencion { get; set; } =
             new List<DetalleAtencionDto>(); // Se inicializa para evitar null
     }

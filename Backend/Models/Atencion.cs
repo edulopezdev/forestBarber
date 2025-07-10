@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using backend.Data;
 using backend.Models;
 
@@ -19,9 +20,8 @@ namespace backend.Models
         [Required]
         public DateTime Fecha { get; set; }
 
-        [Required]
-        [Range(0, 10000)]
-        public decimal Total { get; set; }
+        [NotMapped]
+        public decimal TotalCalculado => DetalleAtencion.Sum(d => d.Cantidad * d.PrecioUnitario);
 
         public int? TurnoId { get; set; }
 
