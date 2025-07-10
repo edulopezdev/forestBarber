@@ -110,7 +110,7 @@ namespace backend.Controllers
                             subtotal = d.Cantidad * d.PrecioUnitario,
                             observacion = d.Observacion, // Nuevo campo Observacion
                         }),
-                        totalVenta = atencion.Total,
+                        totalVenta = atencion.TotalCalculado,
                         pagos = new List<object>(),
                         montoPagado = 0,
                         estadoPago = "Sin pago",
@@ -177,21 +177,6 @@ namespace backend.Controllers
                         status = 400,
                         error = "Bad Request",
                         message = $"ClienteId {dto.ClienteId} no existe.",
-                    }
-                );
-            }
-
-            // Validar total
-            if (dto.Total < 0)
-            {
-                _logger.LogWarning("Total inválido: {Total}", dto.Total);
-
-                return BadRequest(
-                    new
-                    {
-                        status = 400,
-                        error = "Bad Request",
-                        message = "El total debe ser un valor positivo.",
                     }
                 );
             }
@@ -273,7 +258,6 @@ namespace backend.Controllers
                 ClienteId = dto.ClienteId,
                 BarberoId = barberoId,
                 Fecha = dto.Fecha ?? DateTime.Now,
-                Total = dto.Total,
                 DetalleAtencion = dto
                     .Detalles.Select(d => new DetalleAtencion
                     {
@@ -421,7 +405,6 @@ namespace backend.Controllers
             atencion.ClienteId = dto.ClienteId;
             atencion.BarberoId = dto.BarberoId;
             atencion.Fecha = dto.Fecha;
-            atencion.Total = dto.Total;
 
             _context.Entry(atencion).State = EntityState.Modified;
 
@@ -547,7 +530,7 @@ namespace backend.Controllers
             var atenciones = query.ToList();
 
             // Calcular ingresos totales
-            decimal totalIngresos = atenciones.Sum(a => a.Total);
+            decimal totalIngresos = atenciones.Sum(a => a.TotalCalculado);
 
             // Contar cantidad de atenciones
             int totalAtenciones = atenciones.Count;

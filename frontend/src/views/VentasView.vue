@@ -346,14 +346,6 @@ export default {
               : null,
         };
         const ordenDescendente = this.sortOrder === -1;
-        VentaService.getVentas(
-          page,
-          pageSize,
-          filtros,
-          this.sortField,
-          ordenDescendente
-        );
-
         const res = await VentaService.getVentas(
           page,
           pageSize,
