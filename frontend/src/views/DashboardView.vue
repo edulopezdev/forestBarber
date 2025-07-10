@@ -82,8 +82,9 @@ const detalleChart = ref({});
 const chartOptions = ref({});
 const barOptions = ref({});
 
-const anio = ref(2025);
-const mes = ref(6);
+const ahora = new Date();
+const anio = ref(ahora.getFullYear());
+const mes = ref(ahora.getMonth() + 1); // getMonth() va de 0 a 11, por eso +1
 
 function nombreMes(mesNum) {
   const meses = [

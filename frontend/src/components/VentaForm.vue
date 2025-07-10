@@ -70,7 +70,7 @@
           <tr v-for="(item, index) in carrito" :key="index">
             <td>{{ item.nombreProducto }}</td>
             <td class="cantidad-control">
-              <div class="boton-cantidad">
+              <div v-if="item.esAlmacenable" class="boton-cantidad">
                 <Button
                   icon="pi pi-minus"
                   text
@@ -83,7 +83,9 @@
                   @click="aumentarCantidad(item)"
                 />
               </div>
+              <div v-else class="valor-cantidad">1</div>
             </td>
+
             <td>$ {{ item.precioUnitario.toFixed(2) }}</td>
             <td>$ {{ (item.cantidad * item.precioUnitario).toFixed(2) }}</td>
             <td>
@@ -222,12 +224,10 @@ export default {
       if (nuevoValor && nuevoValor !== null) {
         console.log("Cliente recibido:", nuevoValor.cliente);
 
-        // Clonar profundamente el cliente
         this.formulario.cliente = nuevoValor.cliente
           ? JSON.parse(JSON.stringify(nuevoValor.cliente))
           : null;
 
-        // Normalizar los detalles para asegurar nombreProducto
         this.carrito = nuevoValor.detalles
           ? nuevoValor.detalles.map((detalle) => ({
               productoServicioId: detalle.productoServicioId,
@@ -237,6 +237,7 @@ export default {
                 detalle.nombreProducto ||
                 detalle.nombre ||
                 "Producto sin nombre",
+              esAlmacenable: detalle.esAlmacenable ?? false,
             }))
           : [];
       } else {
@@ -249,9 +250,18 @@ export default {
       this.formulario.cliente = this.venta.cliente
         ? JSON.parse(JSON.stringify(this.venta.cliente))
         : null;
-      this.carrito = JSON.parse(JSON.stringify(this.venta.detalles));
+
+      this.carrito = this.venta.detalles.map((detalle) => ({
+        productoServicioId: detalle.productoServicioId,
+        cantidad: detalle.cantidad,
+        precioUnitario: detalle.precioUnitario,
+        nombreProducto:
+          detalle.nombreProducto || detalle.nombre || "Producto sin nombre",
+        esAlmacenable: detalle.esAlmacenable ?? false,
+      }));
     }
   },
+
   methods: {
     async buscarClientes(event) {
       const query = event.query || "";
@@ -320,6 +330,7 @@ export default {
           nombre: producto.nombre,
           cantidad: 1,
           precioUnitario: producto.precio,
+          esAlmacenable: producto.esAlmacenable,
         });
       }
       this.busquedaProducto = "";
