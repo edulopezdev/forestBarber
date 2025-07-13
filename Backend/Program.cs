@@ -4,6 +4,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 using backend.Data;
+using backend.Services;
+using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -152,6 +154,9 @@ builder
     });
 
 builder.Services.AddAuthorization(); // esto lo q hace es configurar autorización
+
+// Registrar servicios de negocio
+builder.Services.AddScoped<IVentaService, VentaService>();
 
 var app = builder.Build();
 

@@ -22,7 +22,7 @@
         </div>
       </template>
       <template #content>
-        <DataTable
+        <TablaGlobal
           v-model:filters="filters"
           :value="ventas"
           :filterDisplay="mostrarFiltros ? 'row' : 'none'"
@@ -51,7 +51,11 @@
           </Column>
 
           <!-- Producto -->
-          <Column field="productoNombres" header="Producto">
+          <Column
+            field="productoNombres"
+            header="Producto"
+            :headerStyle="{ textAlign: 'center' }"
+          >
             <template #body="slotProps">
               {{ slotProps.data.producto }}
             </template>
@@ -67,10 +71,15 @@
           <!-- Fecha -->
           <Column field="fecha" header="Fecha" sortable>
             <template #filter="{ filterModel, filterCallback }">
-              <InputText
-                v-model="filterModel.value"
-                @input="filterCallback()"
-                placeholder="Buscar fecha"
+              <Calendar
+                v-model="filters.fecha.value"
+                @update:modelValue="onFechaChange"
+                dateFormat="dd/mm/yy"
+                placeholder="Seleccionar fecha"
+                showIcon
+                style="width: 140px; min-width: 120px"
+                class="w-full filtro-fecha"
+                inputClass="w-full"
               />
             </template>
           </Column>
@@ -88,7 +97,12 @@
           </Column>
 
           <!-- Estado -->
-          <Column field="estado" header="Estado" sortable>
+          <Column
+            field="estado"
+            header="Estado"
+            :sortable="false"
+            :headerStyle="{ textAlign: 'center' }"
+          >
             <template #body="slotProps">
               <Tag
                 :value="slotProps.data.estado ? 'Pagado' : 'Pendiente'"
@@ -97,17 +111,21 @@
               />
             </template>
             <template #filter="{ filterModel, filterCallback }">
-              <Dropdown
-                v-model="filterModel.value"
-                @change="filterCallback()"
-                :options="[
-                  { label: 'Completada', value: true },
-                  { label: 'Pendiente', value: false },
-                ]"
-                optionLabel="label"
-                placeholder="Seleccionar estado"
-                showClear
-              />
+              <div style="display: flex; justify-content: center">
+                <Dropdown
+                  v-model="filters.estado.value"
+                  @change="onEstadoChange"
+                  :options="[
+                    { label: 'Pagado', value: true },
+                    { label: 'Pendiente', value: false },
+                  ]"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Seleccionar estado"
+                  showClear
+                  style="width: 150px"
+                />
+              </div>
             </template>
           </Column>
 
@@ -168,7 +186,7 @@
               </div>
             </template>
           </Column>
-        </DataTable>
+        </TablaGlobal>
 
         <!-- Mensaje total ventas -->
         <div class="total-ventas" v-if="totalVentas > 0">
@@ -276,6 +294,7 @@ import { FilterMatchMode } from "primevue/api";
 import Swal from "sweetalert2";
 import VentaForm from "../components/VentaForm.vue";
 import VentaDetalle from "../components/VentaDetalle.vue";
+import Calendar from "primevue/calendar";
 
 export default {
   components: {
@@ -289,6 +308,7 @@ export default {
     Dialog,
     VentaForm,
     VentaDetalle,
+    Calendar,
   },
   data() {
     return {
@@ -297,8 +317,8 @@ export default {
       currentPage: 1,
       pageSize: 10,
       first: 0,
-      sortField: null,
-      sortOrder: null,
+      sortField: "fecha",
+      sortOrder: -1, // -1 para descendente, 1 para ascendente
       loading: false,
       mostrarFiltros: false,
       mostrarModal: false,
@@ -330,28 +350,50 @@ export default {
     this.obtenerVentas();
   },
   methods: {
+    onFechaChange() {
+      // Al seleccionar una fecha, dispara el filtro y GET
+      this.obtenerVentas(1, this.pageSize);
+    },
+    onEstadoChange() {
+      // Al cambiar el estado, dispara el filtro y GET
+      this.obtenerVentas(1, this.pageSize);
+    },
     async obtenerVentas(page = 1, pageSize = 10) {
       this.loading = true;
 
       try {
+        // Formatear fecha a yyyy-MM-dd si es Date
+        let fechaFiltro = undefined;
+        if (this.filters.fecha?.value) {
+          if (this.filters.fecha.value instanceof Date) {
+            const d = this.filters.fecha.value;
+            fechaFiltro = `${d.getFullYear()}-${String(
+              d.getMonth() + 1
+            ).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          } else {
+            fechaFiltro = this.filters.fecha.value;
+          }
+        }
+        // Estado: null si no hay filtro, "completo" o "pendiente" si hay filtro
+        let estadoFiltro = null;
+        if (this.filters.estado?.value === true) estadoFiltro = "completo";
+        else if (this.filters.estado?.value === false)
+          estadoFiltro = "pendiente";
+
         const filtros = {
           clienteNombre: this.filters.cliente?.value || undefined,
           productoNombre: this.filters.productoNombres?.value || undefined,
-          fecha: this.filters.fecha?.value || undefined,
-          estadoPago:
-            this.filters.estado?.value !== null
-              ? this.filters.estado.value
-                ? "pagado"
-                : "pendiente"
-              : null,
+          fecha: fechaFiltro,
+          estadoPago: estadoFiltro,
         };
         const ordenDescendente = this.sortOrder === -1;
+        const ordenCampo = this.getBackendSortField(this.sortField);
         const res = await VentaService.getVentas(
           page,
           pageSize,
           filtros,
-          this.sortField,
-          this.sortOrder === 1 ? "asc" : this.sortOrder === -1 ? "desc" : null
+          ordenCampo,
+          ordenDescendente
         );
 
         this.ventas = res.data.ventas.map((venta) => {
@@ -380,6 +422,21 @@ export default {
         Swal.fire("Error", "No se pudieron cargar las ventas.", "error");
       } finally {
         this.loading = false;
+      }
+    },
+
+    // Traduce el campo de la tabla al campo esperado por el backend
+    getBackendSortField(field) {
+      switch (field) {
+        case "cliente":
+          return "cliente";
+        case "fecha":
+          return "fecha";
+        case "montoPagado":
+        case "totalVenta":
+          return "monto";
+        default:
+          return "fecha";
       }
     },
 
@@ -971,4 +1028,44 @@ export default {
   border-radius: 12px !important; /* Bordes consistentes */
   text-align: center;
 }
+
+/* Centrar el header de la columna Producto y Estado */
+:deep(.p-datatable-thead > tr > th:nth-child(2)),
+:deep(.p-datatable-thead > tr > th:nth-child(5)) {
+  text-align: center !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Evitar espacio negro entre header Estado y filtro */
+:deep(.p-column-header-content) {
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Ajuste para el filtro de Estado */
+:deep(.p-column-filter) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent !important;
+  padding: 0.15rem 0.3rem !important;
+  margin: 0 !important;
+  min-height: 40px;
+}
+
+/* Ajuste para el filtro de fecha */
+:deep(.filtro-fecha .p-inputtext) {
+  min-width: 110px !important;
+  max-width: 140px !important;
+  font-size: 0.95rem !important;
+  padding: 0.2rem 0.5rem !important;
+}
+:deep(.p-calendar) {
+  width: 140px !important;
+  min-width: 120px !important;
+  max-width: 160px !important;
+}
+
 </style>

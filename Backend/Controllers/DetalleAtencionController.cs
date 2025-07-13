@@ -2,6 +2,8 @@ using System.Text.Json;
 using backend.Data;
 using backend.Dtos;
 using backend.Models;
+using backend.Services;
+using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -14,17 +16,20 @@ namespace backend.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<DetalleAtencionController> _logger;
+        private readonly IVentaService _ventaService;
 
         public DetalleAtencionController(
             ApplicationDbContext context,
-            ILogger<DetalleAtencionController> logger
+            ILogger<DetalleAtencionController> logger,
+            IVentaService ventaService
         )
         {
             _context = context;
             _logger = logger;
+            _ventaService = ventaService;
         }
 
-        // GET: api/detalleatencion (Lista de detalles de atenciones)
+        // GET: api/detalleatencion
         [HttpGet]
         public IActionResult GetDetallesAtencion(int page = 1, int pageSize = 10)
         {
@@ -49,12 +54,12 @@ namespace backend.Controllers
                         pageSize,
                         totalDetalles,
                     },
-                    detalles = detalles ?? new List<DetalleAtencion>(), // esto es para evitar nulls
+                    detalles = detalles ?? new List<DetalleAtencion>(),
                 }
             );
         }
 
-        // GET: api/detalleatencion/{id} (Un detalle de atención específico)
+        // GET: api/detalleatencion/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> GetDetalleAtencion(int id)
         {
@@ -81,7 +86,7 @@ namespace backend.Controllers
             );
         }
 
-        // GET: api/detalleatencion/ventas (Obtener lista de ventas con filtros y paginación)
+        // GET: api/detalleatencion/ventas
         [HttpGet("ventas")]
         public async Task<IActionResult> GetVentas(
             int page = 1,
@@ -89,203 +94,48 @@ namespace backend.Controllers
             string? clienteNombre = null,
             int? productoServicioId = null,
             string? productoNombre = null,
-            DateTime? fechaDesde = null,
-            DateTime? fechaHasta = null,
+            DateTime? fecha = null,
             string ordenarPor = "fecha",
-            bool ordenDescendente = true, // POR DEFECTO: ventas recientes arriba
+            string? ordenDescendente = null, // ahora es string para parsear manualmente
             decimal? montoMin = null,
-            decimal? montoMax = null
+            decimal? montoMax = null,
+            string? estadoPago = null
         )
         {
             try
             {
-                _logger.LogInformation(
-                    "Llamada a GetVentas con parámetros: page={Page}, pageSize={PageSize}, clienteNombre={ClienteNombre}, ordenarPor={OrdenarPor}, ordenDescendente={OrdenDescendente}",
+                // Parseamos ordenDescendente con valor por defecto true
+                bool ordenDesc = true;
+                if (!string.IsNullOrEmpty(ordenDescendente))
+                {
+                    bool.TryParse(ordenDescendente, out ordenDesc);
+                }
+
+                DateTime? fechaDesde = null;
+                DateTime? fechaHasta = null;
+
+                if (fecha.HasValue)
+                {
+                    fechaDesde = fecha.Value.Date;
+                    fechaHasta = fecha.Value.Date.AddDays(1).AddTicks(-1);
+                }
+
+                var resultado = await _ventaService.ObtenerVentasAsync(
                     page,
                     pageSize,
-                    clienteNombre ?? "(null)",
+                    clienteNombre,
+                    productoServicioId,
+                    productoNombre,
+                    fechaDesde,
+                    fechaHasta,
                     ordenarPor,
-                    ordenDescendente
+                    ordenDesc,
+                    montoMin,
+                    montoMax,
+                    estadoPago
                 );
 
-                var query = _context
-                    .Atencion.Include(a => a.Cliente)
-                    .Include(a => a.DetalleAtencion)
-                    .ThenInclude(d => d.ProductoServicio)
-                    .Where(a => a.DetalleAtencion.Any())
-                    .AsQueryable();
-
-                _logger.LogInformation("Consulta inicial construida.");
-
-                // Filtro: nombre cliente
-                if (!string.IsNullOrEmpty(clienteNombre))
-                {
-                    clienteNombre = clienteNombre.Trim().ToLower();
-                    query = query.Where(a =>
-                        a.Cliente != null
-                        && a.Cliente.Nombre != null
-                        && a.Cliente.Nombre.ToLower().Contains(clienteNombre)
-                    );
-                }
-
-                // Filtro: ID producto
-                if (productoServicioId.HasValue)
-                {
-                    query = query.Where(a =>
-                        a.DetalleAtencion.Any(d => d.ProductoServicioId == productoServicioId.Value)
-                    );
-                }
-
-                // Filtro: nombre producto
-                if (!string.IsNullOrEmpty(productoNombre))
-                {
-                    productoNombre = productoNombre.Trim().ToLower();
-                    query = query.Where(a =>
-                        a.DetalleAtencion.Any(d =>
-                            d.ProductoServicio != null
-                            && d.ProductoServicio.Nombre != null
-                            && d.ProductoServicio.Nombre.ToLower().Contains(productoNombre)
-                        )
-                    );
-                }
-
-                // Filtro: fecha desde/hasta
-                if (fechaDesde.HasValue)
-                {
-                    query = query.Where(a => a.Fecha >= fechaDesde.Value.Date);
-                }
-
-                if (fechaHasta.HasValue)
-                {
-                    query = query.Where(a =>
-                        a.Fecha <= fechaHasta.Value.Date.AddDays(1).AddTicks(-1)
-                    );
-                }
-
-                // Log de la consulta SQL generada (EF Core 5+)
-                _logger.LogInformation(
-                    "Consulta SQL sin orden ni paginado: {Query}",
-                    query.ToQueryString()
-                );
-
-                var totalFiltrado = await query.CountAsync();
-                _logger.LogInformation("Total registros filtrados: {TotalFiltrado}", totalFiltrado);
-
-                // Traemos solo la página sin ordenar (para evitar problemas con subconsultas en OrderBy)
-                var atenciones = await query
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync();
-
-                _logger.LogInformation(
-                    "Resultados obtenidos sin ordenar: {Count}",
-                    atenciones.Count
-                );
-
-                // Ordenamiento en memoria
-                switch (ordenarPor.ToLower())
-                {
-                    case "cliente":
-                        atenciones = ordenDescendente
-                            ? atenciones.OrderByDescending(a => a.Cliente?.Nombre ?? "").ToList()
-                            : atenciones.OrderBy(a => a.Cliente?.Nombre ?? "").ToList();
-                        break;
-
-                    case "monto":
-                        atenciones = ordenDescendente
-                            ? atenciones
-                                .OrderByDescending(a =>
-                                    _context
-                                        .Pagos.Where(p => p.AtencionId == a.Id)
-                                        .Sum(p => p.Monto)
-                                )
-                                .ToList()
-                            : atenciones
-                                .OrderBy(a =>
-                                    _context
-                                        .Pagos.Where(p => p.AtencionId == a.Id)
-                                        .Sum(p => p.Monto)
-                                )
-                                .ToList();
-                        break;
-
-                    default: // fecha
-                        atenciones = ordenDescendente
-                            ? atenciones.OrderByDescending(a => a.Fecha).ToList()
-                            : atenciones.OrderBy(a => a.Fecha).ToList();
-                        break;
-                }
-
-                _logger.LogInformation("Resultados ordenados en memoria.");
-
-                var ventasFinal = new List<object>();
-
-                foreach (var atencion in atenciones)
-                {
-                    var pagosVenta = await _context
-                        .Pagos.Where(p => p.AtencionId == atencion.Id)
-                        .Select(p => new PagoInfoDto
-                        {
-                            PagoId = p.Id,
-                            MetodoPago = p.MetodoPago.ToString(),
-                            Monto = p.Monto,
-                            FechaPago = p.Fecha,
-                        })
-                        .ToListAsync();
-
-                    var detalles = atencion
-                        .DetalleAtencion.Select(d => new DetalleVentaDto
-                        {
-                            ProductoServicioId = d.ProductoServicioId,
-                            NombreProducto =
-                                d.ProductoServicio?.Nombre ?? "Producto/Servicio borrado",
-                            Cantidad = d.Cantidad,
-                            PrecioUnitario = d.PrecioUnitario,
-                            Observacion = d.Observacion,
-                        })
-                        .ToList();
-
-                    var totalVenta = detalles.Sum(d => d.Subtotal);
-                    var totalPagado = pagosVenta.Sum(p => p.Monto);
-
-                    ventasFinal.Add(
-                        new
-                        {
-                            atencionId = atencion.Id,
-                            atencion.ClienteId,
-                            ClienteNombre = atencion.Cliente?.Nombre ?? "Cliente Desconocido",
-                            FechaAtencion = atencion.Fecha,
-                            Detalles = detalles,
-                            TotalVenta = totalVenta,
-                            Pagos = pagosVenta,
-                            MontoPagado = totalPagado,
-                            EstadoPago = totalPagado >= totalVenta ? "Completo" : "Pendiente",
-                        }
-                    );
-                }
-
-                _logger.LogInformation(
-                    "Ventas procesadas para respuesta: {Count}",
-                    ventasFinal.Count
-                );
-
-                return Ok(
-                    new
-                    {
-                        status = 200,
-                        message = ventasFinal.Any()
-                            ? "Ventas obtenidas correctamente."
-                            : "No hay ventas registradas.",
-                        pagination = new
-                        {
-                            totalPages = (int)Math.Ceiling((double)totalFiltrado / pageSize),
-                            currentPage = page,
-                            pageSize,
-                            total = totalFiltrado,
-                        },
-                        ventas = ventasFinal,
-                    }
-                );
+                return Ok(resultado);
             }
             catch (Exception ex)
             {
@@ -377,11 +227,10 @@ namespace backend.Controllers
             );
         }
 
-        // POST: api/detalleatencion (Registrar un nuevo detalle de atención)
+        // POST: api/detalleatencion
         [HttpPost]
         public async Task<IActionResult> PostDetalleAtencion(DetalleAtencion detalleAtencion)
         {
-            // Validar que `AtencionId` exista
             if (!await _context.Atencion.AnyAsync(a => a.Id == detalleAtencion.AtencionId))
             {
                 return BadRequest(
@@ -394,7 +243,6 @@ namespace backend.Controllers
                 );
             }
 
-            // Validar que `ProductoServicioId` exista
             if (
                 !await _context.ProductosServicios.AnyAsync(p =>
                     p.Id == detalleAtencion.ProductoServicioId
@@ -426,7 +274,7 @@ namespace backend.Controllers
             );
         }
 
-        // PUT: api/detalleatencion/{id} (Actualizar detalle de atención)
+        // PUT: api/detalleatencion/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> PutDetalleAtencion(int id, DetalleAtencion detalleAtencion)
         {
@@ -461,6 +309,7 @@ namespace backend.Controllers
                         }
                     );
                 }
+
                 throw;
             }
 
@@ -474,7 +323,7 @@ namespace backend.Controllers
             );
         }
 
-        // DELETE: api/detalleatencion/{id} (Eliminar detalle de atención)
+        // DELETE: api/detalleatencion/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDetalleAtencion(int id)
         {
@@ -491,7 +340,6 @@ namespace backend.Controllers
                 );
             }
 
-            // 🔹 Verificar si el detalle de atención está vinculado a una atención existente
             var atencionExiste = await _context.Atencion.AnyAsync(a =>
                 a.Id == detalleAtencion.AtencionId
             );
@@ -513,7 +361,6 @@ namespace backend.Controllers
                 );
             }
 
-            // 🔹 Verificar si el detalle de atención está vinculado a un producto o servicio existente
             var productoServicioExiste = await _context.ProductosServicios.AnyAsync(p =>
                 p.Id == detalleAtencion.ProductoServicioId
             );

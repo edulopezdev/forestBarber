@@ -23,7 +23,7 @@
       </template>
 
       <template #content>
-        <DataTable
+        <TablaGlobal
           v-model:filters="filters"
           :value="usuarios"
           :filterDisplay="mostrarFiltros ? 'row' : 'none'"
@@ -154,7 +154,7 @@
               </div>
             </template>
           </Column>
-        </DataTable>
+        </TablaGlobal>
 
         <div class="total-usuarios" v-if="totalUsuarios > 0">
           Total de usuarios registrados: {{ totalUsuarios }}

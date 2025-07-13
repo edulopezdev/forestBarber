@@ -5,6 +5,7 @@ import axios from "axios";
 import authService from "./services/auth.service";
 import Tooltip from "primevue/tooltip";
 import "./style.css";
+import TablaGlobal from "./components/TablaGlobal.vue";
 
 // Import PrimeVue
 import PrimeVue from "primevue/config";
@@ -64,3 +65,6 @@ app.component("Toast", Toast);
 
 // Montar la aplicación
 app.mount("#app");
+
+// Registrar el componente TablaGlobal globalmente
+app.component("TablaGlobal", TablaGlobal);

@@ -23,7 +23,7 @@
       </template>
 
       <template #content>
-        <DataTable
+        <TablaGlobal
           v-model:filters="filters"
           :value="clientes"
           :filterDisplay="mostrarFiltros ? 'row' : 'none'"
@@ -137,7 +137,7 @@
               </div>
             </template>
           </Column>
-        </DataTable>
+        </TablaGlobal>
 
         <!-- Mensaje de cantidad total -->
         <div class="total-clientes" v-if="totalClients > 0">
@@ -194,6 +194,7 @@ import ClienteForm from "../components/ClienteForm.vue";
 import ClienteDetalle from "../components/ClienteDetalle.vue";
 import Swal from "sweetalert2";
 import authService from "../services/auth.service";
+import TablaGlobal from "../components/TablaGlobal.vue";
 
 
 export default {

@@ -23,7 +23,7 @@
       </template>
 
       <template #content>
-        <DataTable
+        <TablaGlobal
           v-model:filters="filters"
           :value="productos"
           :filterDisplay="mostrarFiltros ? 'row' : 'none'"
@@ -152,7 +152,7 @@
               </div>
             </template>
           </Column>
-        </DataTable>
+        </TablaGlobal>
 
         <div class="total-productos" v-if="totalProductos > 0">
           Total de productos registrados: {{ totalProductos }}
