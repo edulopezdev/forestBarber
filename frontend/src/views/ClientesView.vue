@@ -196,7 +196,6 @@ import Swal from "sweetalert2";
 import authService from "../services/auth.service";
 import TablaGlobal from "../components/TablaGlobal.vue";
 
-
 export default {
   components: {
     DataTable,

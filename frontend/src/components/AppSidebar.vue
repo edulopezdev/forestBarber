@@ -67,6 +67,13 @@ export default {
           rolesAllowed: ["Administrador", "Barbero"],
         },
         {
+          label: "Caja",
+          route: "/caja",
+          icon: "pi pi-wallet",
+          rolesAllowed: ["Administrador", "Barbero"],
+        },
+
+        {
           label: "Usuarios",
           route: "/usuarios",
           icon: "pi pi-user",

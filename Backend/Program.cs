@@ -157,7 +157,9 @@ builder.Services.AddAuthorization(); // esto lo q hace es configurar autorizaci√
 
 // Registrar servicios de negocio
 builder.Services.AddScoped<IVentaService, VentaService>();
+builder.Services.AddScoped<ICierreDiarioService, CierreDiarioService>();
 
+// Registrar servicios de acceso a datos
 var app = builder.Build();
 
 // Middleware

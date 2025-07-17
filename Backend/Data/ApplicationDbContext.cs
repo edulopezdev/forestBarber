@@ -5,7 +5,7 @@ namespace backend.Data
 {
     public class ApplicationDbContext : DbContext // Heredar de DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) // este es el constructor
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) // Constructor
             : base(options) { }
 
         // Mapeo de entidades con los nombres correctos según la base de datos
@@ -19,11 +19,15 @@ namespace backend.Data
         public DbSet<Rol> Rol { get; set; }
         public DbSet<Pago> Pagos { get; set; }
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder) //aca se mapean las entidades con sus respectivas tablas
+        // Nuevas tablas para cierre de caja
+        public DbSet<CierreDiario> CierresDiarios { get; set; }
+        public DbSet<CierreDiarioPago> CierresDiariosPagos { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder) // Mapeo de tablas y relaciones
         {
             base.OnModelCreating(modelBuilder);
 
-            // Asegurar que cada entidad mapea correctamente a la tabla de la base de datos
+            // Mapear tablas existentes
             modelBuilder.Entity<Usuario>().ToTable("usuario");
             modelBuilder.Entity<Turno>().ToTable("turno");
             modelBuilder.Entity<ProductoServicio>().ToTable("productos_servicios");
@@ -34,16 +38,27 @@ namespace backend.Data
             modelBuilder.Entity<Rol>().ToTable("rol");
             modelBuilder.Entity<Pago>().ToTable("pago");
 
-            // Configuración de relaciones para `Pago`
+            // Configuración de relaciones para Pago
             modelBuilder
-                .Entity<Pago>() // Configuración de relaciones para `Pago`
-                .HasOne(p => p.Atencion) // Una Pago pertenece a una Atención
-                .WithMany() // Una Atención puede tener múltiples pagos (pagos parciales)
-                .HasForeignKey(p => p.AtencionId) // La clave externa es el AtencionId
-                .OnDelete(DeleteBehavior.Cascade); // Asegúrate de que esta política de eliminación es la que deseas
+                .Entity<Pago>()
+                .HasOne(p => p.Atencion)
+                .WithMany()
+                .HasForeignKey(p => p.AtencionId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-            // Configuración del Enum `MetodoPago` para almacenarse como `string`
             modelBuilder.Entity<Pago>().Property(p => p.MetodoPago).HasConversion<string>();
+
+            // Mapear nuevas tablas cierre de caja con nombres explícitos
+            modelBuilder.Entity<CierreDiario>().ToTable("cierre_diario");
+            modelBuilder.Entity<CierreDiarioPago>().ToTable("cierre_diario_pago");
+
+            // Configurar relación uno a muchos entre cierre_diario y cierre_diario_pago
+            modelBuilder
+                .Entity<CierreDiario>()
+                .HasMany(c => c.Pagos)
+                .WithOne(p => p.CierreDiario)
+                .HasForeignKey(p => p.CierreDiarioId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

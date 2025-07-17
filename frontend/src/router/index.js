@@ -125,6 +125,13 @@ const routes = [
     meta: { requiresAuth: true, requiredRole: ["Administrador", "Barbero"] },
   },
   {
+    path: "/caja",
+    name: "Caja",
+    component: () => import("../views/CajaView.vue"),
+    meta: { requiresAuth: true, requiredRole: ["Administrador", "Barbero"] },
+  },
+
+  {
     path: "/:catchAll(.*)", // Redirige cualquier ruta no existente al login
     redirect: "/login",
   },
