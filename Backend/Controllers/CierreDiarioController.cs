@@ -31,12 +31,36 @@ namespace backend.Controllers
             try
             {
                 var nuevo = await _cierreService.CrearCierreAsync(cierre);
+
+                // Crear un objeto anónimo para evitar ciclos de referencia
+                var cierreResponse = new
+                {
+                    id = nuevo.Id,
+                    fecha = nuevo.Fecha,
+                    totalProductosVendidos = nuevo.TotalProductosVendidos,
+                    totalServiciosVendidos = nuevo.TotalServiciosVendidos,
+                    totalVentasDia = nuevo.TotalVentasDia,
+                    observaciones = nuevo.Observaciones,
+                    fechaCierre = nuevo.FechaCierre,
+                    cerrado = nuevo.Cerrado,
+                    usuarioId = nuevo.UsuarioId,
+                    pagos = nuevo.Pagos == null
+                        ? new object[0]
+                        : nuevo
+                            .Pagos.Select(p => new
+                            {
+                                metodoPago = p.MetodoPagoNombre,
+                                monto = p.Monto,
+                            })
+                            .ToArray(),
+                };
+
                 return Ok(
                     new
                     {
                         status = 200,
                         message = "Cierre creado correctamente.",
-                        cierre = nuevo,
+                        cierre = cierreResponse,
                     }
                 );
             }
@@ -63,12 +87,29 @@ namespace backend.Controllers
             try
             {
                 var cierres = await _cierreService.ObtenerCierresAsync();
+
+                // Crear una lista de objetos anónimos para evitar ciclos de referencia
+                var cierresResponse = cierres
+                    .Select(c => new
+                    {
+                        id = c.Id,
+                        fecha = c.Fecha,
+                        totalProductosVendidos = c.TotalProductosVendidos,
+                        totalServiciosVendidos = c.TotalServiciosVendidos,
+                        totalVentasDia = c.TotalVentasDia,
+                        observaciones = c.Observaciones,
+                        fechaCierre = c.FechaCierre,
+                        cerrado = c.Cerrado,
+                        usuarioId = c.UsuarioId,
+                    })
+                    .ToList();
+
                 return Ok(
                     new
                     {
                         status = 200,
                         message = "Cierres obtenidos correctamente.",
-                        cierres,
+                        cierres = cierresResponse,
                     }
                 );
             }
@@ -100,12 +141,26 @@ namespace backend.Controllers
                     return NotFound(new { status = 404, message = "Cierre no encontrado." });
                 }
 
+                // Crear un objeto anónimo para evitar ciclos de referencia
+                var cierreResponse = new
+                {
+                    id = cierre.Id,
+                    fecha = cierre.Fecha,
+                    totalProductosVendidos = cierre.TotalProductosVendidos,
+                    totalServiciosVendidos = cierre.TotalServiciosVendidos,
+                    totalVentasDia = cierre.TotalVentasDia,
+                    observaciones = cierre.Observaciones,
+                    fechaCierre = cierre.FechaCierre,
+                    cerrado = cierre.Cerrado,
+                    usuarioId = cierre.UsuarioId,
+                };
+
                 return Ok(
                     new
                     {
                         status = 200,
                         message = "Cierre obtenido correctamente.",
-                        cierre,
+                        cierre = cierreResponse,
                     }
                 );
             }
@@ -160,22 +215,65 @@ namespace backend.Controllers
         [HttpGet("por-fecha")]
         public async Task<IActionResult> ObtenerCierrePorFecha([FromQuery] DateTime fecha)
         {
-            var cierre = await _cierreService.ObtenerCierrePorFechaAsync(fecha);
-            if (cierre != null)
+            try
             {
-                return Ok(new { status = 200, cierre });
-            }
+                var cierre = await _cierreService.ObtenerCierrePorFechaAsync(fecha);
+                if (cierre != null)
+                {
+                    // Crear un objeto anónimo para evitar ciclos de referencia
+                    var cierreResponse = new
+                    {
+                        id = cierre.Id,
+                        fecha = cierre.Fecha,
+                        totalProductosVendidos = cierre.TotalProductosVendidos,
+                        totalServiciosVendidos = cierre.TotalServiciosVendidos,
+                        totalVentasDia = cierre.TotalVentasDia,
+                        observaciones = cierre.Observaciones,
+                        fechaCierre = cierre.FechaCierre,
+                        cerrado = cierre.Cerrado,
+                        usuarioId = cierre.UsuarioId,
+                        pagos = cierre.Pagos == null
+                            ? new object[0]
+                            : cierre
+                                .Pagos.Select(p => new
+                                {
+                                    metodoPago = p.MetodoPagoNombre,
+                                    monto = p.Monto,
+                                })
+                                .ToArray(),
+                    };
+                    return Ok(new { status = 200, cierre = cierreResponse });
+                }
 
-            var resumenDinamico = await _cierreService.ObtenerResumenDelDiaAsync(fecha);
-            if (resumenDinamico == null)
+                var resumenDinamico = await _cierreService.ObtenerResumenDelDiaAsync(fecha);
+                if (resumenDinamico == null)
+                {
+                    return NotFound(
+                        new
+                        {
+                            status = 404,
+                            message = "No se encontró cierre ni datos para esa fecha.",
+                        }
+                    );
+                }
+
+                // Devolver resumen dinámico dentro de un objeto "cierre" para mantener estructura
+                return Ok(new { status = 200, cierre = resumenDinamico });
+            }
+            catch (Exception ex)
             {
-                return NotFound(
-                    new { status = 404, message = "No se encontró cierre ni datos para esa fecha." }
+                _logger.LogError(ex, $"Error al obtener cierre por fecha {fecha}");
+                return StatusCode(
+                    500,
+                    new
+                    {
+                        status = 500,
+                        error = "Internal Server Error",
+                        message = "Ocurrió un error al obtener el cierre por fecha.",
+                        details = ex.Message,
+                    }
                 );
             }
-
-            // Devolver resumen dinámico dentro de un objeto "cierre" para mantener estructura
-            return Ok(new { status = 200, cierre = resumenDinamico });
         }
 
         [HttpGet("resumen")]
@@ -284,9 +382,11 @@ namespace backend.Controllers
                 fechaCierre = cierreGuardado.FechaCierre,
                 cerrado = cierreGuardado.Cerrado,
                 usuarioId = cierreGuardado.UsuarioId,
-                pagos = cierreGuardado
-                    .Pagos.Select(p => new { metodoPago = p.MetodoPagoNombre, monto = p.Monto })
-                    .ToList(),
+                pagos = cierreGuardado.Pagos == null
+                    ? new object[0]
+                    : cierreGuardado
+                        .Pagos.Select(p => new { metodoPago = p.MetodoPagoNombre, monto = p.Monto })
+                        .ToArray(),
             };
 
             return Ok(

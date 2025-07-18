@@ -41,9 +41,9 @@ namespace backend.Services
 
         public async Task<CierreDiario?> ObtenerCierrePorFechaAsync(DateTime fecha)
         {
-            return await _context.CierresDiarios.FirstOrDefaultAsync(c =>
-                c.Fecha.Date == fecha.Date
-            );
+            return await _context
+                .CierresDiarios.Include(c => c.Pagos)
+                .FirstOrDefaultAsync(c => c.Fecha.Date == fecha.Date);
         }
 
         public async Task<bool> BloquearCierreAsync(int id)
@@ -75,9 +75,15 @@ namespace backend.Services
                     totalUnidadesServicios = 0, // Solo si guardaste unidades
                     totalMontoServicios = cierreExistente.TotalServiciosVendidos,
                     totalIngresos = cierreExistente.TotalVentasDia,
-                    pagos = cierreExistente
-                        .Pagos.Select(p => new { metodoPago = p.MetodoPagoNombre, monto = p.Monto })
-                        .ToList(),
+                    pagos = cierreExistente.Pagos == null
+                        ? new object[0]
+                        : cierreExistente
+                            .Pagos.Select(p => new
+                            {
+                                metodoPago = p.MetodoPagoNombre,
+                                monto = p.Monto,
+                            })
+                            .ToArray(),
                 };
             }
 

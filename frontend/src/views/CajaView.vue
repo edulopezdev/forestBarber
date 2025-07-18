@@ -75,7 +75,7 @@
               <template #body="{ data }">
                 <span
                   :class="{
-                    'resaltado-total': data.total,
+                    'monto-total': data.total,
                     oculto: data.esHeader,
                     'fila-monto': !data.esHeader && !data.total,
                   }"
@@ -142,7 +142,7 @@
     >
       <div class="formulario-cierre">
         <h3>Cierre de Caja</h3>
-        
+
         <div class="campo">
           <label for="observacion">Observaciones</label>
           <Textarea
@@ -153,9 +153,11 @@
             autoResize
           />
         </div>
-        
+
         <div class="campo">
-          <label for="contrasena">Contraseña <span class="obligatorio">*</span></label>
+          <label for="contrasena"
+            >Contraseña <span class="obligatorio">*</span></label
+          >
           <Password
             id="contrasena"
             v-model="contrasena"
@@ -194,13 +196,13 @@ import Dialog from "primevue/dialog";
 import Textarea from "primevue/textarea";
 import Password from "primevue/password";
 import Toast from "primevue/toast";
-import Tooltip from 'primevue/tooltip';
+import Tooltip from "primevue/tooltip";
 import Swal from "sweetalert2";
 import CajaService from "../services/CajaService.js";
 
 export default {
   directives: {
-    tooltip: Tooltip
+    tooltip: Tooltip,
   },
   components: {
     TablaGlobal,
@@ -239,12 +241,18 @@ export default {
 
         this.cierreActual = cierre;
 
+        // Obtener los montos de productos y servicios
+        const montoProductos =
+          cierre.totalProductosVendidos || cierre.totalMontoProductos || 0;
+        const montoServicios =
+          cierre.totalServiciosVendidos || cierre.totalMontoServicios || 0;
+
         const resumenVentas = [
-          { concepto: "Productos", monto: cierre.totalMontoProductos },
-          { concepto: "Servicios", monto: cierre.totalMontoServicios },
+          { concepto: "Productos", monto: montoProductos },
+          { concepto: "Servicios", monto: montoServicios },
           {
             concepto: "TOTAL FINAL DEL DÍA",
-            monto: cierre.totalMontoProductos + cierre.totalMontoServicios,
+            monto: montoProductos + montoServicios,
             total: true,
           },
         ];
@@ -255,8 +263,7 @@ export default {
         }));
 
         const totalPagos = cierre.pagos.reduce((acc, p) => acc + p.monto, 0);
-        const totalVentas =
-          cierre.totalMontoProductos + cierre.totalMontoServicios;
+        const totalVentas = montoProductos + montoServicios;
 
         this.resumenVentas = resumenVentas;
         this.resumenPagos = resumenPagos;
@@ -513,7 +520,6 @@ export default {
   line-height: 1.2rem;
   border-bottom: 1px solid #333 !important;
   vertical-align: middle;
-  text-align: center !important;
 }
 
 :deep(.p-datatable-thead > tr > th) {
@@ -525,10 +531,12 @@ export default {
 
 :deep(.header-align-left) {
   text-align: left !important;
+  padding-left: 1rem !important;
 }
 
 :deep(.header-align-right) {
   text-align: right !important;
+  padding-right: 1rem !important;
 }
 
 /* Eliminar completamente el efecto hover */
@@ -695,5 +703,37 @@ label {
   background-color: #121212;
   color: white;
   border: 1px solid #444;
+}
+
+/* Estilos para alineación de columnas */
+.fila-concepto {
+  text-align: left !important;
+  padding-left: 1rem !important;
+  display: block;
+  width: 100%;
+}
+
+.fila-monto {
+  text-align: right !important;
+  padding-right: 1rem !important;
+  display: block;
+  width: 100%;
+}
+
+.resaltado-total {
+  text-align: left !important;
+  padding-left: 1rem !important;
+  font-weight: bold;
+  color: #66ff66;
+}
+
+/* Estilo específico para el monto del total */
+.monto-total {
+  text-align: right !important;
+  padding-right: 1rem !important;
+  display: block;
+  width: 100%;
+  font-weight: bold;
+  color: #66ff66;
 }
 </style>
