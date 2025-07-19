@@ -48,4 +48,9 @@ export default {
       responseType: "blob", // Para descargar el archivo
     });
   },
+  
+  // Obtener nombre de usuario por ID
+  getUsuarioPorId(id) {
+    return apiClient.get(`/usuarios/${id}`);
+  },
 };

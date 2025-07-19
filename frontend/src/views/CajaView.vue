@@ -199,6 +199,8 @@ import Toast from "primevue/toast";
 import Tooltip from "primevue/tooltip";
 import Swal from "sweetalert2";
 import CajaService from "../services/CajaService.js";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
 export default {
   directives: {
@@ -226,12 +228,14 @@ export default {
       mostrarModalCierre: false,
       observacion: "",
       contrasena: "",
+      nombreOperador: "",
     };
   },
   mounted() {
     this.obtenerCierrePorFecha(this.fechaSeleccionada);
   },
   methods: {
+    
     async obtenerCierrePorFecha(fecha) {
       try {
         const response = await CajaService.getCierrePorFecha(
@@ -257,9 +261,22 @@ export default {
           },
         ];
 
+        // Si hay un usuarioId en el cierre, obtener el nombre del operador
+        if (cierre.usuarioId) {
+          try {
+            const usuarioResponse = await CajaService.getUsuarioPorId(cierre.usuarioId);
+            if (usuarioResponse.data && usuarioResponse.data.usuario) {
+              this.nombreOperador = usuarioResponse.data.usuario.nombre || "Desconocido";
+            }
+          } catch (err) {
+            console.error("Error al obtener nombre de operador:", err);
+            this.nombreOperador = "Desconocido";
+          }
+        }
+
         const resumenPagos = cierre.pagos.map((p) => ({
           concepto: `Pago con ${p.metodoPago}`,
-          monto: p.monto,
+          monto: p.monto
         }));
 
         const totalPagos = cierre.pagos.reduce((acc, p) => acc + p.monto, 0);
@@ -289,6 +306,7 @@ export default {
         this.resumenPagos = [];
         this.resumenUnificado = [];
         this.diferenciaPagos = 0;
+        this.nombreOperador = "";
       }
     },
 
@@ -347,8 +365,248 @@ export default {
       }
     },
     exportarPDF() {
-      const fechaISO = this.fechaSeleccionada.toISOString().split("T")[0];
-      window.open(`/api/cierre-diario/exportar/${fechaISO}`, "_blank");
+      try {
+        // Crear PDF con formato simple y legible
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a5'
+        });
+        
+        // Configurar fuentes tipo ticket
+        pdf.setFont('courier', 'normal');
+        
+        // Fecha formateada
+        const fecha = this.fechaSeleccionada.toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
+        
+        // Márgenes y posiciones
+        const margenIzq = 15;
+        const anchoPagina = 118; // A5 tiene 148mm de ancho, dejamos márgenes
+        let posY = 20;  // Margen superior adecuado
+        
+        // Encabezado
+        pdf.setFontSize(14);
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont('courier', 'bold');
+        pdf.text('FOREST BARBER', 74, posY, { align: 'center' });
+        
+        posY += 8;
+        pdf.setFontSize(12);
+        pdf.setFont('courier', 'normal');
+        pdf.text('CIERRE DE CAJA', 74, posY, { align: 'center' });
+        
+        posY += 8;
+        pdf.setFontSize(10);
+        pdf.text(`Fecha: ${fecha}`, 74, posY, { align: 'center' });
+        
+        // Línea separadora
+        posY += 5;
+        pdf.setDrawColor(0, 0, 0);
+        pdf.line(margenIzq, posY, margenIzq + anchoPagina, posY);
+        
+        // Sección: Resumen de Ventas
+        posY += 8;
+        pdf.setFontSize(12);
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont('courier', 'bold');
+        pdf.text('RESUMEN DE VENTAS', 74, posY, { align: 'center' });
+        pdf.setFont('courier', 'normal');
+        
+        // Tabla de ventas
+        posY += 8;
+        
+        // Encabezados de tabla
+        pdf.setFont('courier', 'bold');
+        pdf.setFontSize(10);
+        pdf.text('CONCEPTO', margenIzq, posY);
+        pdf.text('MONTO', margenIzq + anchoPagina - 5, posY, { align: 'right' });
+        pdf.setFont('courier', 'normal');
+        
+        // Línea bajo encabezados
+        posY += 2;
+        pdf.line(margenIzq, posY, margenIzq + anchoPagina, posY);
+        
+        // Filas de ventas
+        posY += 6;
+        this.resumenVentas.forEach((item) => {
+          // Aplicar estilo para totales
+          if (item.total) {
+            pdf.setFont('courier', 'bold');
+          } else {
+            pdf.setFont('courier', 'normal');
+          }
+          
+          pdf.text(item.concepto, margenIzq, posY);
+          pdf.text(`$${item.monto.toFixed(2)}`, margenIzq + anchoPagina, posY, { align: 'right' });
+          
+          posY += 6;
+        });
+        
+        // Línea separadora
+        pdf.line(margenIzq, posY, margenIzq + anchoPagina, posY);
+        posY += 6;
+        
+        // Sección: Métodos de Pago (si existen)
+        if (this.resumenPagos.length > 0) {
+          pdf.setFont('courier', 'bold');
+          pdf.setFontSize(12);
+          pdf.text('METODOS DE PAGO', 74, posY, { align: 'center' });
+          pdf.setFont('courier', 'normal');
+          
+          // Tabla de pagos
+          posY += 8;
+          
+          // Encabezados de tabla
+          pdf.setFont('courier', 'bold');
+          pdf.setFontSize(10);
+          pdf.text('METODO', margenIzq, posY);
+          pdf.text('MONTO', margenIzq + anchoPagina - 5, posY, { align: 'right' });
+          pdf.setFont('courier', 'normal');
+          
+          // Línea bajo encabezados
+          posY += 2;
+          pdf.line(margenIzq, posY, margenIzq + anchoPagina, posY);
+          
+          // Filas de pagos
+          posY += 6;
+          this.resumenPagos.forEach((item) => {
+            pdf.text(item.concepto, margenIzq, posY);
+            pdf.text(`$${item.monto.toFixed(2)}`, margenIzq + anchoPagina, posY, { align: 'right' });
+            posY += 6;
+          });
+          
+          // Línea separadora
+          pdf.line(margenIzq, posY, margenIzq + anchoPagina, posY);
+          posY += 6;
+        }
+        
+        // Diferencia (si existe)
+        if (this.diferenciaPagos !== 0) {
+          pdf.setFont('courier', 'bold');
+          pdf.setFontSize(10);
+          pdf.text('DIFERENCIA:', margenIzq, posY);
+          pdf.text(`$${this.diferenciaPagos.toFixed(2)}`, margenIzq + anchoPagina, posY, { align: 'right' });
+          posY += 6;
+          
+          // Línea separadora
+          pdf.line(margenIzq, posY, margenIzq + anchoPagina, posY);
+          posY += 6;
+        }
+        
+        // Estado de caja
+        pdf.setFont('courier', 'bold');
+        pdf.setFontSize(10);
+        pdf.text('ESTADO:', margenIzq, posY);
+        pdf.setFont('courier', 'normal');
+        pdf.text(this.cierreActual?.cerrado ? 'CERRADO' : 'ABIERTO', margenIzq + anchoPagina, posY, { align: 'right' });
+        posY += 6;
+        
+        // Información del operador
+        pdf.setFont('courier', 'bold');
+        pdf.text('OPERADOR:', margenIzq, posY);
+        pdf.setFont('courier', 'normal');
+        pdf.text(this.nombreOperador || 'No especificado', margenIzq + anchoPagina, posY, { align: 'right' });
+        posY += 6;
+        
+        // Observaciones (si existen)
+        if (this.cierreActual?.observaciones) {
+          pdf.setFont('courier', 'bold');
+          pdf.text('OBSERVACIONES:', margenIzq, posY);
+          posY += 5;
+          pdf.setFont('courier', 'normal');
+          const obs = pdf.splitTextToSize(this.cierreActual.observaciones, anchoPagina);
+          pdf.text(obs, margenIzq, posY);
+          posY += obs.length * 5;
+        }
+        
+        // Línea separadora final
+        pdf.line(margenIzq, posY, margenIzq + anchoPagina, posY);
+        posY += 6;
+        
+        // Pie de página
+        pdf.setFontSize(8);
+        pdf.setFont('courier', 'italic');
+        pdf.text(`Generado: ${new Date().toLocaleString('es-ES')}`, 74, posY, { align: 'center' });
+        posY += 5;
+        pdf.text('Forest Barber - Sistema de Gestion', 74, posY, { align: 'center' });
+        
+        // Guardar PDF con escala adecuada para visualización
+        pdf.save(`Cierre_Caja_${fecha.replace(/\//g, '-')}.pdf`);
+        
+        this.$toast.add({
+          severity: 'success',
+          summary: 'PDF Generado',
+          detail: 'El informe se ha generado correctamente',
+          life: 3000
+        });xt('ESTADO:', margenIzq, posY);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(this.cierreActual?.cerrado ? 'CERRADO' : 'ABIERTO', margenIzq + anchoPagina, posY, { align: 'right' });
+        posY += 6;
+        
+        // Información del operador
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('OPERADOR:', margenIzq, posY);
+        pdf.setFont('helvetica', 'normal');
+        
+        // Usar el nombre del operador que ya obtuvimos
+        pdf.text(this.nombreOperador || 'No especificado', margenIzq + anchoPagina, posY, { align: 'right' });
+        posY += 6;
+        
+        // Observaciones (si existen)
+        if (this.cierreActual?.observacion) {
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('OBS:', margenIzq, posY);
+          pdf.setFont('helvetica', 'normal');
+          
+          // Manejar texto largo con saltos de línea automáticos
+          posY += 6;
+          const splitObservacion = pdf.splitTextToSize(this.cierreActual.observacion, anchoPagina - 10);
+          splitObservacion.forEach(line => {
+            pdf.text(line, margenIzq + 10, posY);
+            posY += 5;
+          });
+        }
+        
+        // Línea separadora final
+        pdf.line(margenIzq, posY, margenIzq + anchoPagina, posY);
+        posY += 6;
+        
+        // Pie de página
+        pdf.setFontSize(8);
+        pdf.text(`Generado: ${new Date().toLocaleString('es-ES')}`, 74, posY, { align: 'center' });
+        posY += 5;
+        pdf.text('Forest Barber - Sistema de Gestion', 74, posY, { align: 'center' });
+        
+        // Ajustar el tamaño del PDF al contenido
+        const finalHeight = posY + 10; // Añadir un margen adecuado al final
+        if (finalHeight < 210) { // A5 tiene 210mm de alto
+          pdf.internal.pageSize.height = 210;
+        } else {
+          pdf.internal.pageSize.height = finalHeight;
+        }
+        
+        // Guardar PDF con escala adecuada para visualización
+        pdf.save(`Cierre_Caja_${fecha.replace(/\//g, '-')}.pdf`);
+        
+        this.$toast.add({
+          severity: 'success',
+          summary: 'PDF Generado',
+          detail: 'El informe se ha generado correctamente',
+          life: 3000
+        });
+      } catch (error) {
+        console.error('Error al generar PDF:', error);
+        this.$toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'No se pudo generar el PDF. Intente nuevamente.',
+          life: 3000
+        });
+      }
     },
   },
 };
@@ -736,4 +994,5 @@ label {
   font-weight: bold;
   color: #66ff66;
 }
+
 </style>
