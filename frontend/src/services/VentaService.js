@@ -77,4 +77,16 @@ export default {
     );
     return apiClient.put(`/atencion/${atencionId}`, datosActualizados);
   },
+  
+  // Método simplificado para actualizar solo los detalles de una venta
+  actualizarDetallesVenta(atencionId, detalles) {
+    const payload = {
+      detalles: detalles
+    };
+    console.log(
+      "Payload para POST /detalleatencion/actualizar/" + atencionId + ":",
+      JSON.stringify(payload, null, 2)
+    );
+    return apiClient.post(`/detalleatencion/actualizar/${atencionId}`, payload);
+  },
 };

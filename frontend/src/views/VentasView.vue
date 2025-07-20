@@ -325,6 +325,7 @@ export default {
       mostrarDetalleModal: false,
       mostrarPagarModal: false,
       ventaSeleccionada: null,
+      ventaOriginal: null, // Para guardar todos los datos originales de la venta
       ventaSeleccionadaParaPago: null,
       pagoForm: {
         metodo: "",
@@ -488,6 +489,9 @@ export default {
             Swal.fire("Error", "Detalles de venta no encontrados.", "error");
             return;
           }
+          
+          // Guardar la venta original completa para mantener todos los datos
+          this.ventaOriginal = data;
 
           this.ventaSeleccionada = {
             id: data.atencionId,
@@ -521,6 +525,7 @@ export default {
 
     cerrarModal() {
       this.mostrarModal = false;
+      this.ventaOriginal = null;
     },
 
     verDetalles(venta) {
@@ -560,41 +565,114 @@ export default {
 
     guardarVenta(data) {
       if (!data.cliente || !data.detalles || data.detalles.length === 0) {
-        Swal.fire(
-          "Error",
-          "Debe seleccionar un cliente y al menos un producto.",
-          "error"
-        );
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Debe seleccionar un cliente y al menos un producto.",
+          customClass: {
+            container: 'swal-container-class'
+          }
+        });
         return;
       }
-
-      const payload = {
-        clienteId: data.cliente.id,
-        detalles: data.detalles.map((d) => ({
-          productoServicioId: d.productoServicioId,
-          cantidad: d.cantidad,
-          precioUnitario: d.precioUnitario,
-          observacion: d.observacion || null,
-        })),
-      };
-
-      VentaService.crearVenta(payload)
-        .then(() => {
-          Swal.fire({
-            icon: "success",
-            title: "Venta registrada",
-            background: "#18181b",
-            color: "#fff",
-            timer: 2000,
-            showConfirmButton: false,
-          });
-          this.cerrarModal();
-          this.obtenerVentas(this.currentPage, this.pageSize);
-        })
-        .catch((err) => {
-          console.error("Error al guardar venta:", err);
-          Swal.fire("Error", "No se pudo registrar la venta.", "error");
+      
+      // Verificar si es una edición o una nueva venta
+      if (data.id) {
+        // Es una edición, mostrar confirmación primero
+        Swal.fire({
+          title: '¿Modificar esta venta?',
+          text: 'Se actualizarán los datos de la venta seleccionada',
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonColor: '#28a745',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: 'Sí, modificar',
+          cancelButtonText: 'Cancelar',
+          background: '#18181b',
+          color: '#fff',
+          customClass: {
+            container: 'swal-container-class'
+          }
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Preparar solo los detalles para actualizar
+            const detalles = data.detalles.map((d) => ({
+              productoServicioId: d.productoServicioId,
+              cantidad: d.cantidad,
+              precioUnitario: d.precioUnitario,
+              observacion: d.observacion || null,
+            }));
+            
+            // Usar el nuevo método que solo actualiza los detalles
+            VentaService.actualizarDetallesVenta(data.id, detalles)
+              .then(() => {
+                Swal.fire({
+                  icon: "success",
+                  title: "Venta actualizada",
+                  background: "#18181b",
+                  color: "#fff",
+                  timer: 2000,
+                  showConfirmButton: false,
+                  customClass: {
+                    container: 'swal-container-class'
+                  }
+                });
+                this.cerrarModal();
+                this.obtenerVentas(this.currentPage, this.pageSize);
+              })
+              .catch((err) => {
+                console.error("Error al actualizar venta:", err);
+                Swal.fire({
+                  icon: "error", 
+                  title: "Error", 
+                  text: "No se pudo actualizar la venta.",
+                  customClass: {
+                    container: 'swal-container-class'
+                  }
+                });
+              });
+          }
         });
+      } else {
+        // Es una nueva venta, usar el método de creación
+        const payload = {
+          clienteId: data.cliente.id,
+          detalles: data.detalles.map((d) => ({
+            productoServicioId: d.productoServicioId,
+            cantidad: d.cantidad,
+            precioUnitario: d.precioUnitario,
+            observacion: d.observacion || null,
+          })),
+        };
+        
+        VentaService.crearVenta(payload)
+          .then(() => {
+            Swal.fire({
+              icon: "success",
+              title: "Venta registrada",
+              background: "#18181b",
+              color: "#fff",
+              timer: 2000,
+              showConfirmButton: false,
+              customClass: {
+                container: 'swal-container-class'
+              }
+            });
+            this.cerrarModal();
+            this.obtenerVentas(this.currentPage, this.pageSize);
+          })
+          .catch((err) => {
+            console.error("Error al guardar venta:", err);
+            Swal.fire({
+              icon: "error", 
+              title: "Error", 
+              text: "No se pudo registrar la venta.",
+              customClass: {
+                container: 'swal-container-class'
+              }
+            });
+          });
+      }
     },
 
     pagarDialog(venta) {
@@ -1068,4 +1146,16 @@ export default {
   max-width: 160px !important;
 }
 
+/* Estilos para asegurar que SweetAlert2 aparezca por encima del modal */
+:global(.swal-container-class) {
+  z-index: 10000 !important; /* Valor mayor que cualquier otro z-index en la aplicación */
+}
+
+:global(.swal2-container) {
+  z-index: 10000 !important;
+}
+
+:global(.swal2-popup) {
+  z-index: 10001 !important;
+}
 </style>
