@@ -342,6 +342,10 @@ export default {
         background: "#18181b",
         color: "#ffffff",
         iconColor: iconColors[icon] || "#ffffff",
+        backdrop: false,
+        customClass: {
+          popup: 'swal-toast-popup',
+        },
       });
     },
 
@@ -409,15 +413,15 @@ export default {
         let posY = 20; // Margen superior adecuado
 
         // Encabezado
-        pdf.setFontSize(14);
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFont("courier", "bold");
-        pdf.text("FOREST BARBER", 74, posY, { align: "center" });
+        pdf.setFontSize(14); // Aumenta el tamaño de la fuente
+        pdf.setTextColor(0, 0, 0);// Color negro
+        pdf.setFont("courier", "bold");// Fuente en negrita
+        pdf.text("FOREST BARBER", 74, posY, { align: "center" });// Centrado
 
-        posY += 8;
-        pdf.setFontSize(12);
-        pdf.setFont("courier", "normal");
-        pdf.text("CIERRE DE CAJA", 74, posY, { align: "center" });
+        posY += 8;// Espacio entre encabezado y título
+        pdf.setFontSize(12);// Tamaño de fuente para el título
+        pdf.setFont("courier", "normal");// Fuente normal
+        pdf.text("CIERRE DE CAJA", 74, posY, { align: "center" });// 
 
         posY += 8;
         pdf.setFontSize(10);
@@ -1018,5 +1022,15 @@ label {
 :deep(.tabla-resumen) {
   width: 100%;
   margin: 0 auto;
+}
+
+/* Estilos para el toast en primer plano */
+:global(.swal-toast-popup) {
+  z-index: 9999 !important;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+:global(.swal2-container) {
+  z-index: 9999 !important;
 }
 </style>

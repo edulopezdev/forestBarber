@@ -5,11 +5,14 @@ import axios from "axios";
 //   baseURL: "http://localhost:5000/api",
 // });
 
-//Camnio
+//Cambio
 const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 const apiClient = axios.create({
   baseURL: apiBaseURL,
 });
+
+// Extraer la base URL sin la parte '/api' para las imágenes
+const baseUrlSinApi = apiBaseURL.replace('/api', '');
 
 // Interceptor para agregar token si existe
 apiClient.interceptors.request.use((config) => {
@@ -120,5 +123,15 @@ export default {
     return apiClient.get(`/productosservicios/${idProductoServicio}/imagen`, {
       responseType: "blob",
     });
+  },
+  
+  // Método para obtener la URL completa de una imagen
+  getImagenUrl(rutaRelativa) {
+    if (!rutaRelativa) return null;
+    
+    // Asegurarse de que la ruta relativa comience con '/'
+    const rutaNormalizada = rutaRelativa.startsWith('/') ? rutaRelativa : `/${rutaRelativa}`;
+    
+    return `${baseUrlSinApi}${rutaNormalizada}`;
   },
 };

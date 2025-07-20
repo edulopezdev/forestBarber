@@ -62,6 +62,8 @@
 </template>
 
 <script>
+import ProductoServicioService from '../services/ProductoServicioService.js';
+
 export default {
   name: "ProductoServicioDetalle",
   props: {
@@ -100,9 +102,7 @@ export default {
     // Obtiene la URL completa de la imagen
     getRutaImagen(ruta) {
       if (!ruta) return "/img/no-image.jpg";
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-      return ruta.startsWith("http") ? ruta : `${baseUrl}${ruta}`;
+      return ruta.startsWith("http") ? ruta : ProductoServicioService.getImagenUrl(ruta);
     },
   },
 };

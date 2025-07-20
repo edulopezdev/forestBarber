@@ -115,6 +115,7 @@ import InputNumber from "primevue/inputnumber";
 import Checkbox from "primevue/checkbox";
 import Button from "primevue/button";
 import FileUpload from "primevue/fileupload";
+import ProductoServicioService from '../services/ProductoServicioService.js';
 
 export default {
   name: "ProductoServicioForm",
@@ -256,11 +257,9 @@ export default {
     imagenUrl() {
       if (this.previewImagen) return this.previewImagen;
       if (this.form.imagen) {
-        const baseUrl =
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
         return this.form.imagen.startsWith("http")
           ? this.form.imagen
-          : `${baseUrl}${this.form.imagen}`;
+          : ProductoServicioService.getImagenUrl(this.form.imagen);
       }
       return "/img/no-image.png"; // placeholder por defecto
     },
