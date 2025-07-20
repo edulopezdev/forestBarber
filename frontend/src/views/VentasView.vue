@@ -245,7 +245,8 @@
           optionLabel="nombre"
           optionValue="valor"
           placeholder="Seleccione método"
-          class="mb-3 w-full"
+          class="mb-3 w-full dropdown-metodo-pago"
+          appendTo="self"
         />
         <label
           >Monto a pagar (pendiente:
@@ -1083,6 +1084,8 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  position: relative;
+  z-index: 1;
 }
 .mb-2 {
   margin-bottom: 0.5rem;
@@ -1144,6 +1147,19 @@ export default {
   width: 140px !important;
   min-width: 120px !important;
   max-width: 160px !important;
+}
+
+/* Estilos para el dropdown en el modal de pago */
+.formulario-pago :deep(.p-dropdown) {
+  position: relative;
+  z-index: 2;
+}
+
+.formulario-pago :deep(.p-dropdown-panel) {
+  position: absolute !important;
+  z-index: 9999 !important;
+  transform: none !important;
+  margin-top: 2px !important;
 }
 
 /* Estilos para asegurar que SweetAlert2 aparezca por encima del modal */

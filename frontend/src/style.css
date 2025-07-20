@@ -52,10 +52,12 @@ body::before {
   z-index: -1;
 }
 /* Evitar que el fondo se mueva al abrir el modal */
-body.modal-open {
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
+body.modal-open,
+body.p-overflow-hidden {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+  padding-right: 0 !important; /* Evita el desplazamiento lateral */
 }
 h1 {
   font-size: 3.2em;

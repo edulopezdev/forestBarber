@@ -57,7 +57,18 @@ app.config.globalProperties.$api = apiClient;
 
 // Usar router y PrimeVue
 app.use(router);
-app.use(PrimeVue);
+app.use(PrimeVue, {
+  ripple: true,
+  inputStyle: 'filled',
+  zIndex: {
+    modal: 1100,        // z-index para modales
+    overlay: 1000,      // z-index para overlays
+    menu: 9999,         // z-index alto para menús desplegables
+    tooltip: 1100       // z-index para tooltips
+  },
+  // Configuración para evitar desplazamientos
+  appendTo: 'self'
+});
 app.directive('tooltip', Tooltip);
 
 app.use(ToastService);
