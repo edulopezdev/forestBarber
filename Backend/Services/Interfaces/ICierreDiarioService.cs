@@ -15,5 +15,6 @@ namespace backend.Services.Interfaces
         Task<CierreDiario?> ObtenerCierrePorFechaAsync(DateTime fecha);
         Task<object> ObtenerResumenDelDiaAsync(DateTime fecha);
         Task<bool> ValidarPasswordAsync(int userId, string password);
+        Task<(bool existe, bool estaCerrada)> VerificarVentaCerradaAsync(int atencionId);
     }
 }

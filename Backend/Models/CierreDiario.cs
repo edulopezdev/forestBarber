@@ -31,6 +31,10 @@ namespace backend.Models
 
         // Propiedad de navegación para los pagos relacionados
         public ICollection<CierreDiarioPago> Pagos { get; set; } = new List<CierreDiarioPago>();
+        
+        // Propiedad de navegación para las atenciones relacionadas
+        public ICollection<Atencion> Atenciones { get; set; } = new List<Atencion>();
+        
         public int UsuarioId { get; set; }
     }
 }

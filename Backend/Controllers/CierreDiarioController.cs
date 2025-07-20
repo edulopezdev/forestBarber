@@ -283,6 +283,64 @@ namespace backend.Controllers
             return Ok(new { status = 200, resumen });
         }
 
+        [HttpGet("verificar-cerrado")]
+        public async Task<IActionResult> VerificarCajaCerrada([FromQuery] DateTime fecha)
+        {
+            try
+            {
+                var cierre = await _cierreService.ObtenerCierrePorFechaAsync(fecha);
+                bool estaCerrado = cierre != null && cierre.Cerrado;
+
+                return Ok(new { status = 200, cerrado = estaCerrado });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    $"Error al verificar si la caja está cerrada para la fecha {fecha}"
+                );
+                return StatusCode(
+                    500,
+                    new
+                    {
+                        status = 500,
+                        error = "Internal Server Error",
+                        message = "Ocurrió un error al verificar el estado de la caja.",
+                        details = ex.Message,
+                    }
+                );
+            }
+        }
+
+        [HttpGet("verificar-venta-cerrada/{atencionId}")]
+        public async Task<IActionResult> VerificarVentaCerrada(int atencionId)
+        {
+            try
+            {
+                var resultado = await _cierreService.VerificarVentaCerradaAsync(atencionId);
+                if (!resultado.existe)
+                {
+                    return NotFound(new { status = 404, message = "Venta no encontrada." });
+                }
+
+                return Ok(new { status = 200, cerrada = resultado.estaCerrada });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al verificar si la venta {atencionId} está cerrada");
+                return StatusCode(
+                    500,
+                    new
+                    {
+                        status = 500,
+                        error = "Internal Server Error",
+                        message = "Ocurrió un error al verificar el estado de la venta.",
+                        details = ex.Message,
+                    }
+                );
+            }
+        }
+
         public class CierreCajaRequest
         {
             public DateTime Fecha { get; set; }
@@ -329,6 +387,7 @@ namespace backend.Controllers
                 TotalServiciosVendidos = resumen.totalMontoServicios,
                 TotalVentasDia = resumen.totalIngresos,
                 Cerrado = true,
+                // Las atenciones se asociarán automáticamente en el servicio
             };
 
             // Agregar los pagos al cierre

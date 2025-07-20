@@ -42,7 +42,13 @@
       </template>
 
       <template #content>
-        <div class="resumen-container">
+        <!-- Indicador de carga -->
+        <div v-if="cargando" class="cargando-container">
+          <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+          <span>Cargando datos...</span>
+        </div>
+        
+        <div v-else class="resumen-container">
           <!-- Resumen unificado -->
           <TablaGlobal
             :value="resumenUnificado"
@@ -230,17 +236,36 @@ export default {
       observacion: "",
       contrasena: "",
       nombreOperador: "",
+      cargando: false,
     };
   },
   mounted() {
-    this.obtenerCierrePorFecha(this.fechaSeleccionada);
+    // Asegurar que la fecha esté correctamente formateada para la API
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0); // Establecer a medianoche para evitar problemas de zona horaria
+    this.fechaSeleccionada = hoy;
+    
+    // Pequeño retraso para asegurar que el componente esté completamente montado
+    this.$nextTick(() => {
+      this.obtenerCierrePorFecha(this.fechaSeleccionada);
+    });
   },
   methods: {
     async obtenerCierrePorFecha(fecha) {
+      // Mostrar indicador de carga
+      this.cargando = true;
+      this.cierreActual = null;
+      this.resumenVentas = [];
+      this.resumenPagos = [];
+      this.resumenUnificado = [];
+      
       try {
-        const response = await CajaService.getCierrePorFecha(
-          fecha.toISOString().split("T")[0]
-        );
+        // Asegurar que la fecha esté en formato YYYY-MM-DD
+        const fechaFormateada = fecha instanceof Date ? 
+          fecha.toISOString().split("T")[0] : 
+          new Date(fecha).toISOString().split("T")[0];
+          
+        const response = await CajaService.getCierrePorFecha(fechaFormateada);
         const cierre = response.data.cierre;
 
         this.cierreActual = cierre;
@@ -310,11 +335,48 @@ export default {
         this.resumenUnificado = [];
         this.diferenciaPagos = 0;
         this.nombreOperador = "";
+      } finally {
+        this.cargando = false;
       }
     },
 
     abrirModalCierre() {
-      this.mostrarModalCierre = true;
+      // Verificar si hay diferencia en los pagos
+      if (this.diferenciaPagos !== 0) {
+        Swal.fire({
+          icon: "error",
+          title: "No se puede cerrar la caja",
+          text: "Hay una diferencia de $" + this.diferenciaPagos.toFixed(2) + " en los pagos. Debe saldar esta diferencia antes de cerrar la caja.",
+          background: "#18181b",
+          color: "#fff",
+          confirmButtonColor: "#dc3545"
+        });
+        return;
+      }
+      
+      // Mostrar advertencia sobre el cierre de caja
+      Swal.fire({
+        title: '¿Está seguro de cerrar la caja?',
+        html: '<div style="text-align: left; margin-top: 1rem;">' +
+              '<p><strong>IMPORTANTE:</strong> Al cerrar la caja:</p>' +
+              '<ul style="padding-left: 1.5rem;">' +
+              '<li>No se podrán editar las ventas de este día</li>' +
+              '<li>No se podrán registrar nuevos pagos para ventas de este día</li>' +
+              '<li>Esta acción no se puede deshacer</li>' +
+              '</ul></div>',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, cerrar caja',
+        cancelButtonText: 'Cancelar',
+        background: '#18181b',
+        color: '#fff'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.mostrarModalCierre = true;
+        }
+      });
     },
 
     cerrarModal() {
@@ -350,6 +412,19 @@ export default {
     },
 
     async cerrarCaja() {
+      // Verificar si hay diferencia en los pagos
+      if (this.diferenciaPagos !== 0) {
+        Swal.fire({
+          icon: "error",
+          title: "No se puede cerrar la caja",
+          text: "Hay una diferencia de $" + this.diferenciaPagos.toFixed(2) + " en los pagos. Debe saldar esta diferencia antes de cerrar la caja.",
+          background: "#18181b",
+          color: "#fff",
+          confirmButtonColor: "#dc3545"
+        });
+        return;
+      }
+
       if (!this.contrasena) {
         this.mostrarToast({
           icon: "warning",
@@ -1010,7 +1085,7 @@ label {
 
 /* Estilos para mejorar el centrado de las columnas */
 :deep(.p-datatable .p-datatable-thead > tr > th:first-child) {
-  text-align: left !important;
+  text-align: 9 !important;
   width: 60%;
 }
 
@@ -1022,6 +1097,17 @@ label {
 :deep(.tabla-resumen) {
   width: 100%;
   margin: 0 auto;
+}
+
+/* Estilos para el indicador de carga */
+.cargando-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+  gap: 1rem;
+  color: #999;
 }
 
 /* Estilos para el toast en primer plano */

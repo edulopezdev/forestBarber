@@ -95,8 +95,8 @@ namespace backend.Controllers
             }
 
             // Validar que el AtencionId exista antes de registrar el pago
-            var atencionExiste = await _context.Atencion.AnyAsync(a => a.Id == pago.AtencionId);
-            if (!atencionExiste)
+            var atencion = await _context.Atencion.FindAsync(pago.AtencionId);
+            if (atencion == null)
             {
                 return BadRequest(
                     new
@@ -104,6 +104,19 @@ namespace backend.Controllers
                         status = 400,
                         error = "Bad Request",
                         message = "La atención asociada no existe.",
+                    }
+                );
+            }
+            
+            // Validar que la venta no esté cerrada (asociada a un cierre de caja)
+            if (atencion.CierreDiarioId != null)
+            {
+                return BadRequest(
+                    new
+                    {
+                        status = 400,
+                        error = "Bad Request",
+                        message = "No se puede registrar un pago para una venta que ya está cerrada.",
                     }
                 );
             }
@@ -216,6 +229,20 @@ namespace backend.Controllers
                         status = 404,
                         error = "Not Found",
                         message = "El pago no existe.",
+                    }
+                );
+            }
+            
+            // Verificar si la venta está cerrada
+            var atencion = await _context.Atencion.FindAsync(pago.AtencionId);
+            if (atencion != null && atencion.CierreDiarioId != null)
+            {
+                return BadRequest(
+                    new
+                    {
+                        status = 400,
+                        error = "Bad Request",
+                        message = "No se puede eliminar un pago de una venta que ya está cerrada.",
                     }
                 );
             }

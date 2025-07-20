@@ -229,30 +229,48 @@ namespace backend.Controllers
 
         // POST: api/detalleatencion/actualizar/{id}
         [HttpPost("actualizar/{id}")]
-        public async Task<IActionResult> ActualizarDetallesVenta(int id, [FromBody] ActualizarDetallesDto dto)
+        public async Task<IActionResult> ActualizarDetallesVenta(
+            int id,
+            [FromBody] ActualizarDetallesDto dto
+        )
         {
             _logger.LogInformation("Actualizando detalles de venta con ID: {Id}", id);
-            
+
             // Verificar si la atención existe
-            var atencion = await _context.Atencion
-                .Include(a => a.DetalleAtencion)
+            var atencion = await _context
+                .Atencion.Include(a => a.DetalleAtencion)
                 .FirstOrDefaultAsync(a => a.Id == id);
-                
+
             if (atencion == null)
             {
-                return NotFound(new
-                {
-                    status = 404,
-                    error = "Not Found",
-                    message = "La venta no existe."
-                });
+                return NotFound(
+                    new
+                    {
+                        status = 404,
+                        error = "Not Found",
+                        message = "La venta no existe.",
+                    }
+                );
             }
-            
+
+            // Verificar si la venta está cerrada (asociada a un cierre de caja)
+            if (atencion.CierreDiarioId != null)
+            {
+                return BadRequest(
+                    new
+                    {
+                        status = 400,
+                        error = "Bad Request",
+                        message = "No se puede modificar una venta que ya está cerrada.",
+                    }
+                );
+            }
+
             try
             {
                 // Eliminar los detalles actuales
                 _context.DetalleAtencion.RemoveRange(atencion.DetalleAtencion);
-                
+
                 // Agregar los nuevos detalles
                 foreach (var detalle in dto.Detalles)
                 {
@@ -262,30 +280,31 @@ namespace backend.Controllers
                         ProductoServicioId = detalle.ProductoServicioId,
                         Cantidad = detalle.Cantidad,
                         PrecioUnitario = detalle.PrecioUnitario,
-                        Observacion = detalle.Observacion
+                        Observacion = detalle.Observacion,
                     };
-                    
+
                     _context.DetalleAtencion.Add(nuevoDetalle);
                 }
-                
+
                 await _context.SaveChangesAsync();
-                
-                return Ok(new
-                {
-                    status = 200,
-                    message = "Detalles de venta actualizados correctamente."
-                });
+
+                return Ok(
+                    new { status = 200, message = "Detalles de venta actualizados correctamente." }
+                );
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al actualizar detalles de venta");
-                return StatusCode(500, new
-                {
-                    status = 500,
-                    error = "Internal Server Error",
-                    message = "Ocurrió un error al actualizar los detalles de la venta.",
-                    details = ex.Message
-                });
+                return StatusCode(
+                    500,
+                    new
+                    {
+                        status = 500,
+                        error = "Internal Server Error",
+                        message = "Ocurrió un error al actualizar los detalles de la venta.",
+                        details = ex.Message,
+                    }
+                );
             }
         }
 

@@ -25,6 +25,10 @@ namespace backend.Models
 
         public int? TurnoId { get; set; }
 
+        // Relación con CierreDiario
+        public int? CierreDiarioId { get; set; }
+        public CierreDiario? CierreDiario { get; set; }
+
         public Usuario Cliente { get; set; } = null!;
         public Usuario Barbero { get; set; } = null!;
         public ICollection<DetalleAtencion> DetalleAtencion { get; set; } =

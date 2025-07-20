@@ -113,6 +113,7 @@ namespace backend.Services
                     a.Atencion.ClienteId,
                     ClienteNombre = a.Atencion.Cliente?.Nombre ?? "Cliente Desconocido",
                     FechaAtencion = a.Atencion.Fecha,
+                    CierreDiarioId = a.Atencion.CierreDiarioId, // Incluir el ID del cierre diario
                     Detalles = a.Detalles,
                     TotalVenta = a.Detalles.Sum(d => d.Cantidad * d.PrecioUnitario),
                     Pagos = a
@@ -131,6 +132,7 @@ namespace backend.Services
                     a.ClienteId,
                     a.ClienteNombre,
                     a.FechaAtencion,
+                    a.CierreDiarioId,
                     a.Detalles,
                     a.TotalVenta,
                     a.Pagos,
@@ -142,11 +144,13 @@ namespace backend.Services
                     a.ClienteId,
                     a.ClienteNombre,
                     a.FechaAtencion,
+                    a.CierreDiarioId,
                     a.Detalles,
                     a.TotalVenta,
                     a.Pagos,
                     a.MontoPagado,
-                    EstadoPago = a.MontoPagado >= a.TotalVenta ? "Completo" : "Pendiente",
+                    EstadoPago = a.CierreDiarioId != null ? "Cerrado" : (a.MontoPagado >= a.TotalVenta ? "Completo" : "Pendiente"),
+                    FechaVenta = a.FechaAtencion.Date,
                 })
                 .AsQueryable();
 
@@ -158,7 +162,17 @@ namespace backend.Services
                 query = query.Where(a => a.TotalVenta <= montoMax.Value);
 
             if (!string.IsNullOrEmpty(estadoPago))
-                query = query.Where(a => a.EstadoPago.ToLower() == estadoPago.ToLower());
+            {
+                if (estadoPago.ToLower() == "cerrado")
+                {
+                    // Filtrar ventas que tengan un CierreDiarioId (están cerradas)
+                    query = query.Where(a => a.CierreDiarioId != null);
+                }
+                else
+                {
+                    query = query.Where(a => a.EstadoPago.ToLower() == estadoPago.ToLower());
+                }
+            }
 
             if (string.IsNullOrEmpty(ordenarPor))
                 ordenarPor = "fecha";

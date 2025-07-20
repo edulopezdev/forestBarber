@@ -7,6 +7,7 @@ using backend.Models;
 using backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace backend.Services
 {
@@ -14,18 +15,59 @@ namespace backend.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<CierreDiarioService> _logger;
 
-        public CierreDiarioService(ApplicationDbContext context, IConfiguration configuration)
+        public CierreDiarioService(
+            ApplicationDbContext context,
+            IConfiguration configuration,
+            ILogger<CierreDiarioService> logger
+        )
         {
             _context = context;
             _configuration = configuration;
+            _logger = logger;
         }
 
         public async Task<CierreDiario> CrearCierreAsync(CierreDiario cierre)
         {
             cierre.FechaCierre = DateTime.UtcNow;
+
+            // Guardar el cierre primero
             _context.CierresDiarios.Add(cierre);
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                $"Cierre creado con ID: {cierre.Id} para la fecha {cierre.Fecha:yyyy-MM-dd}"
+            );
+
+            try
+            {
+                var atenciones = await _context
+                    .Atencion.Where(a =>
+                        a.Fecha.Date == cierre.Fecha.Date && a.CierreDiarioId == null
+                    )
+                    .ToListAsync();
+
+                foreach (var atencion in atenciones)
+                {
+                    atencion.CierreDiarioId = cierre.Id;
+                }
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    $"Atenciones actualizadas: {atenciones.Count} registros vinculados al cierre ID {cierre.Id}"
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    $"Error al actualizar atenciones para el cierre ID {cierre.Id}"
+                );
+                throw;
+            }
+
             return cierre;
         }
 
@@ -140,6 +182,17 @@ namespace backend.Services
                 return false;
 
             return BCrypt.Net.BCrypt.Verify(password, usuario.PasswordHash);
+        }
+
+        public async Task<(bool existe, bool estaCerrada)> VerificarVentaCerradaAsync(
+            int atencionId
+        )
+        {
+            var atencion = await _context.Atencion.FindAsync(atencionId);
+            if (atencion == null)
+                return (false, false);
+
+            return (true, atencion.CierreDiarioId != null);
         }
     }
 }

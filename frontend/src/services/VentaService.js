@@ -70,6 +70,12 @@ export default {
   RegistrarPago(pagoData) {
     return apiClient.post("/pago", pagoData);
   },
+  eliminarPago(pagoId) {
+    return apiClient.delete(`/pago/${pagoId}`);
+  },
+  obtenerPagosPorAtencion(atencionId) {
+    return apiClient.get(`/pago/atencion/${atencionId}`);
+  },
   actualizarVenta(atencionId, datosActualizados) {
     console.log(
       "Payload para PUT /atencion/" + atencionId + ":",

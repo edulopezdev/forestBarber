@@ -78,7 +78,13 @@
       <div class="campo">
         <label><i class="pi pi-credit-card"></i> Estado del Pago</label>
         <Tag
-          v-if="venta?.Pagos?.length"
+          v-if="venta?.Pagos?.length && cajaCerrada"
+          severity="info"
+        >
+          Cerrado
+        </Tag>
+        <Tag
+          v-else-if="venta?.Pagos?.length"
           :severity="totalPagado >= venta.TotalVenta ? 'success' : 'info'"
         >
           {{ totalPagado >= venta.TotalVenta ? "Completada" : "Parcial" }}
@@ -138,6 +144,10 @@ export default {
       type: Object,
       default: null,
     },
+    cajaCerrada: {
+      type: Boolean,
+      default: false
+    }
   },
   emits: ["cerrar"],
   data() {

@@ -21,6 +21,11 @@ apiClient.interceptors.request.use((config) => {
 });
 
 export default {
+  // Verificar si una venta está cerrada
+  verificarVentaCerrada(atencionId) {
+    return apiClient.get(`/cierrediario/verificar-venta-cerrada/${atencionId}`);
+  },
+  
   // Obtener cierre de un día específico
   getCierrePorFecha(fecha) {
     return apiClient.get("/cierrediario/por-fecha", {
