@@ -1,5 +1,15 @@
 <template>
   <Toast />
+
+  <!-- Componente que muestra la notificación y oscurece el fondo -->
+  <NewFeatureNotification
+    featureKey="nueva-funcion-dashboard-v1"
+    title="¡Nuevo módulo: Caja!"
+    :duration="10000"
+    top="30%"
+    left="50%"
+  />
+
   <h2 class="dashboard-title">
     Facturación de {{ nombreMes(mes) }} {{ anio }}
   </h2>
@@ -75,6 +85,7 @@ import Chart from "primevue/chart";
 import Card from "primevue/card";
 import Toast from "primevue/toast";
 import FacturacionService from "@/services/FacturacionService";
+import NewFeatureTooltip from "@/components/NewFeatureNotification.vue";
 
 const facturacion = ref(null);
 const chartData = ref({});
@@ -85,6 +96,7 @@ const barOptions = ref({});
 const ahora = new Date();
 const anio = ref(ahora.getFullYear());
 const mes = ref(ahora.getMonth() + 1); // getMonth() va de 0 a 11, por eso +1
+const featureKey = "nueva-funcion-dashboard-v1";
 
 function nombreMes(mesNum) {
   const meses = [
