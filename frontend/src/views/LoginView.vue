@@ -107,6 +107,7 @@ export default {
               v-model="usuario.email"
               type="email"
               placeholder="tu@correo.com"
+              @keyup.enter="iniciarSesion"
             />
           </div>
           <div class="p-field">
@@ -117,6 +118,7 @@ export default {
               placeholder="*********"
               toggleMask
               :feedback="false"
+              @keyup.enter="iniciarSesion"
             />
           </div>
           <Button

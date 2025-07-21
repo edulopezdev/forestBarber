@@ -440,7 +440,6 @@ namespace backend.Controllers
             );
         }
 
-        // DELETE: api/atencion/{id} (Eliminar una atención)
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAtencion(int id)
         {
@@ -449,8 +448,6 @@ namespace backend.Controllers
             var atencion = await _context.Atencion.FindAsync(id);
             if (atencion == null)
             {
-                _logger.LogWarning("Atención con id={Id} no existe para eliminar", id);
-
                 return NotFound(
                     new
                     {
@@ -461,34 +458,22 @@ namespace backend.Controllers
                 );
             }
 
-            // Verificar si la atención está vinculada en `detalle_atencion`
-            var tieneDependencias = _context.DetalleAtencion.Any(d => d.AtencionId == id);
-            if (tieneDependencias)
+            // Verifica que no esté cerrada antes de eliminar
+            if (atencion.CierreDiarioId != null)
             {
-                _logger.LogWarning(
-                    "Atención con id={Id} no se puede eliminar por dependencias",
-                    id
-                );
-
                 return BadRequest(
                     new
                     {
                         status = 400,
                         error = "Bad Request",
-                        message = "No se puede eliminar la atención porque está vinculada a registros en detalle de atención.",
-                        details = new
-                        {
-                            AtencionId = id,
-                            Relacion = "DetalleAtencion",
-                            Motivo = "Restricción de clave foránea",
-                        },
+                        message = "No se puede eliminar la atención porque ya fue cerrada en caja.",
+                        atencionId = id,
                     }
                 );
             }
 
             _context.Atencion.Remove(atencion);
             await _context.SaveChangesAsync();
-            _logger.LogInformation("Atención eliminada correctamente con id={Id}", id);
 
             return Ok(
                 new

@@ -131,9 +131,11 @@
           </Column>
 
           <!-- Acciones -->
-          <Column header="Acciones" style="min-width: 180px">
+          <Column header="Acciones" style="min-width: 180px; text-align: center">
             <template #body="slotProps">
               <div class="acciones-botones">
+                <!-- Espacio adicional a la izquierda -->
+                <div class="espacio-izquierda"></div>
                 <Button
                   icon="pi pi-eye"
                   severity="info"
@@ -143,8 +145,7 @@
                   @click="verDetalles(slotProps.data)"
                 />
                 <!-- Botón de editar: habilitado si la caja no está cerrada, sin importar el estado de pago -->
-                <span v-if="estaCajaCerrada(slotProps.data)" 
-                      v-tooltip.bottom="{value: 'No se puede editar: la venta está cerrada', class: 'tooltip-error'}">
+                <span v-if="estaCajaCerrada(slotProps.data)">
                   <Button
                     icon="pi pi-pencil"
                     severity="secondary"
@@ -168,11 +169,21 @@
                 <span v-if="estaCajaCerrada(slotProps.data)">
                   <span
                     class="icono-check"
-                    v-tooltip.bottom="{value: slotProps.data.estado ? 'Venta cerrada' : 'No se puede registrar pagos: la venta está cerrada', class: 'tooltip-error'}"
+                    v-tooltip.bottom="{
+                      value: slotProps.data.estado
+                        ? 'Venta cerrada'
+                        : 'No se puede registrar pagos: la venta está cerrada',
+                      class: 'tooltip-error',
+                    }"
                   >
                     <i
-                      :class="slotProps.data.estado ? 'pi pi-lock' : 'pi pi-dollar'"
-                      :style="{color: slotProps.data.estado ? '#3498db' : '#999', fontSize: '1.2rem'}"
+                      :class="
+                        slotProps.data.estado ? 'pi pi-lock' : 'pi pi-dollar'
+                      "
+                      :style="{
+                        color: slotProps.data.estado ? '#3498db' : '#999',
+                        fontSize: '1.2rem',
+                      }"
                     ></i>
                   </span>
                 </span>
@@ -182,8 +193,25 @@
                     :severity="slotProps.data.estado ? 'info' : 'success'"
                     text
                     rounded
-                    v-tooltip.bottom="slotProps.data.estado ? 'Modificar pagos' : 'Pagar venta'"
+                    v-tooltip.bottom="
+                      slotProps.data.estado ? 'Modificar pagos' : 'Pagar venta'
+                    "
                     @click="pagarDialog(slotProps.data)"
+                  />
+                </span>
+                <!-- Botón eliminar: solo para ventas con estado "Pendiente" -->
+                <span
+                  v-if="
+                    !slotProps.data.estado && !estaCajaCerrada(slotProps.data)
+                  "
+                >
+                  <Button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    text
+                    rounded
+                    v-tooltip.bottom="'Eliminar venta'"
+                    @click="confirmarEliminarVenta(slotProps.data)"
                   />
                 </span>
               </div>
@@ -228,7 +256,9 @@
       <VentaDetalle
         v-else
         :venta="ventaSeleccionada"
-        :cajaCerrada="ventaSeleccionada && ventaSeleccionada.CierreDiarioId != null"
+        :cajaCerrada="
+          ventaSeleccionada && ventaSeleccionada.CierreDiarioId != null
+        "
         @cerrar="mostrarDetalleModal = false"
       />
     </Dialog>
@@ -249,12 +279,20 @@
         />
       </template>
       <div class="formulario-pago compact-modal">
-
         <!-- Formulario de nuevo pago -->
         <h4 class="compact-title">Nuevo Pago</h4>
         <div class="form-row">
           <div class="form-group">
-            <label for="metodo">Método de pago</label>
+            <div class="label-container">
+              <label for="metodo"
+                >Método de pago <span class="required-indicator">*</span></label
+              >
+              <small
+                v-if="!pagoForm.metodo && pagosPendientes.length === 0"
+                class="metodo-hint"
+                >Seleccione para habilitar el botón</small
+              >
+            </div>
             <Dropdown
               id="metodo"
               v-model="pagoForm.metodo"
@@ -263,6 +301,10 @@
               optionValue="valor"
               placeholder="Seleccione método"
               class="dropdown-metodo-pago"
+              :class="{
+                'p-dropdown-highlight':
+                  !pagoForm.metodo && pagosPendientes.length === 0,
+              }"
               appendTo="self"
             />
           </div>
@@ -281,8 +323,14 @@
               icon="pi pi-plus"
               class="btn-agregar-pago"
               @click="agregarPagoTemporal"
-              :disabled="montoInvalido || !pagoForm.metodo || totalPagado >= ventaSeleccionadaParaPago?.totalVenta || (ventaSeleccionadaParaPago && estaCajaCerrada(ventaSeleccionadaParaPago))"
-              v-tooltip.bottom="ventaSeleccionadaParaPago && estaCajaCerrada(ventaSeleccionadaParaPago) ? {value: 'No se puede agregar pagos: la venta está cerrada', class: 'tooltip-error'} : null"
+              :disabled="
+                montoInvalido ||
+                !pagoForm.metodo ||
+                totalPagado >= ventaSeleccionadaParaPago?.totalVenta ||
+                (ventaSeleccionadaParaPago &&
+                  estaCajaCerrada(ventaSeleccionadaParaPago))
+              "
+              v-tooltip.bottom="getAgregarPagoTooltip()"
             />
           </div>
         </div>
@@ -296,20 +344,37 @@
         <div v-if="pagosCargando" class="pagos-cargando">
           <i class="pi pi-spin pi-spinner"></i> Cargando pagos...
         </div>
-        <div v-else-if="pagosRegistrados.length === 0 && pagosPendientes.length === 0" class="sin-pagos">
+        <div
+          v-else-if="
+            pagosRegistrados.length === 0 && pagosPendientes.length === 0
+          "
+          class="sin-pagos"
+        >
           No hay pagos registrados
         </div>
         <div v-else class="lista-pagos">
           <!-- Pagos ya registrados en la BD (no se pueden modificar) -->
-          <div v-for="pago in pagosRegistrados" :key="'reg-'+pago.pagoId" class="pago-item pago-registrado">
+          <div
+            v-for="pago in pagosRegistrados"
+            :key="'reg-' + pago.pagoId"
+            class="pago-item pago-registrado"
+          >
             <div class="pago-info">
               <div class="pago-metodo">{{ pago.metodoPago }}</div>
               <div class="pago-monto">{{ formatoMoneda(pago.monto) }}</div>
               <div class="pago-fecha">{{ formatearFecha(pago.fecha) }}</div>
             </div>
             <!-- Botón de eliminar pago: deshabilitado si la venta está cerrada -->
-            <span v-if="ventaSeleccionadaParaPago && estaCajaCerrada(ventaSeleccionadaParaPago)" 
-                  v-tooltip.bottom="{value: 'No se puede eliminar: la venta está cerrada', class: 'tooltip-error'}">
+            <span
+              v-if="
+                ventaSeleccionadaParaPago &&
+                estaCajaCerrada(ventaSeleccionadaParaPago)
+              "
+              v-tooltip.bottom="{
+                value: 'No se puede eliminar: la venta está cerrada',
+                class: 'tooltip-error',
+              }"
+            >
               <Button
                 icon="pi pi-trash"
                 severity="danger"
@@ -317,7 +382,7 @@
                 rounded
                 disabled
                 class="button-disabled"
-                style="width: 2.5rem; height: 2.5rem;"
+                style="width: 2.5rem; height: 2.5rem"
               />
             </span>
             <span v-else>
@@ -326,22 +391,36 @@
                 severity="danger"
                 text
                 rounded
-                style="width: 2.5rem; height: 2.5rem;"
+                style="width: 2.5rem; height: 2.5rem"
                 @click="confirmarEliminarPago(pago)"
               />
             </span>
           </div>
-          
+
           <!-- Pagos pendientes de confirmar (temporales) -->
-          <div v-for="(pago, index) in pagosPendientes" :key="'temp-'+index" class="pago-item pago-pendiente">
+          <div
+            v-for="(pago, index) in pagosPendientes"
+            :key="'temp-' + index"
+            class="pago-item pago-pendiente"
+          >
             <div class="pago-info">
               <div class="pago-metodo">{{ pago.metodoPago }}</div>
               <div class="pago-monto">{{ formatoMoneda(pago.monto) }}</div>
-              <div class="pago-fecha pago-pendiente-badge">Pendiente de confirmar</div>
+              <div class="pago-fecha pago-pendiente-badge">
+                Pendiente de confirmar
+              </div>
             </div>
             <!-- Botón de eliminar pago temporal: deshabilitado si la venta está cerrada -->
-            <span v-if="ventaSeleccionadaParaPago && estaCajaCerrada(ventaSeleccionadaParaPago)" 
-                  v-tooltip.bottom="{value: 'No se puede eliminar: la venta está cerrada', class: 'tooltip-error'}">
+            <span
+              v-if="
+                ventaSeleccionadaParaPago &&
+                estaCajaCerrada(ventaSeleccionadaParaPago)
+              "
+              v-tooltip.bottom="{
+                value: 'No se puede eliminar: la venta está cerrada',
+                class: 'tooltip-error',
+              }"
+            >
               <Button
                 icon="pi pi-trash"
                 severity="danger"
@@ -349,7 +428,7 @@
                 rounded
                 disabled
                 class="button-disabled"
-                style="width: 2.5rem; height: 2.5rem;"
+                style="width: 2.5rem; height: 2.5rem"
               />
             </span>
             <span v-else>
@@ -358,27 +437,44 @@
                 severity="danger"
                 text
                 rounded
-                style="width: 2.5rem; height: 2.5rem;"
+                style="width: 2.5rem; height: 2.5rem"
                 @click="eliminarPagoTemporal(index)"
               />
             </span>
           </div>
         </div>
-        
+
         <!-- Información de total pagado y monto restante en una sola línea -->
         <div class="info-total-pagado" v-if="ventaSeleccionadaParaPago">
           <div class="info-row">
             <div class="info-item">
               <div class="info-label">Total pagado:</div>
-              <div class="info-value" :class="{'total-completo': totalPagado >= ventaSeleccionadaParaPago?.totalVenta}">
+              <div
+                class="info-value"
+                :class="{
+                  'total-completo':
+                    totalPagado >= ventaSeleccionadaParaPago?.totalVenta,
+                }"
+              >
                 {{ formatoMoneda(totalPagado) }}
-                <span v-if="totalPagado >= ventaSeleccionadaParaPago?.totalVenta" class="badge-completo">COMPLETO</span>
+                <span
+                  v-if="totalPagado >= ventaSeleccionadaParaPago?.totalVenta"
+                  class="badge-completo"
+                  >COMPLETO</span
+                >
               </div>
             </div>
-            <div class="info-item" v-if="totalPagado < ventaSeleccionadaParaPago?.totalVenta">
+            <div
+              class="info-item"
+              v-if="totalPagado < ventaSeleccionadaParaPago?.totalVenta"
+            >
               <div class="info-label">Monto restante:</div>
               <div class="info-value pendiente">
-                {{ formatoMoneda(ventaSeleccionadaParaPago.totalVenta - totalPagado) }}
+                {{
+                  formatoMoneda(
+                    ventaSeleccionadaParaPago.totalVenta - totalPagado
+                  )
+                }}
               </div>
             </div>
           </div>
@@ -399,13 +495,26 @@
             icon="pi pi-check"
             class="p-button p-button-success btn-confirmar"
             @click="mostrarConfirmacionPagos"
-            :disabled="pagosPendientes.length === 0 || (ventaSeleccionadaParaPago && estaCajaCerrada(ventaSeleccionadaParaPago))"
-            v-tooltip.bottom="ventaSeleccionadaParaPago && estaCajaCerrada(ventaSeleccionadaParaPago) ? {value: 'No se pueden confirmar pagos: la venta está cerrada', class: 'tooltip-error'} : null"
+            :disabled="
+              pagosPendientes.length === 0 ||
+              (ventaSeleccionadaParaPago &&
+                estaCajaCerrada(ventaSeleccionadaParaPago))
+            "
+            v-tooltip.bottom="
+              ventaSeleccionadaParaPago &&
+              estaCajaCerrada(ventaSeleccionadaParaPago)
+                ? {
+                    value:
+                      'No se pueden confirmar pagos: la venta está cerrada',
+                    class: 'tooltip-error',
+                  }
+                : null
+            "
           />
         </div>
       </div>
     </Dialog>
-    
+
     <!-- No se necesita modal de confirmación, se usa SweetAlert2 -->
   </div>
 </template>
@@ -480,7 +589,7 @@ export default {
         estado: { value: null, matchMode: FilterMatchMode.EQUALS },
       },
       totalPagado: 0, // Total pagado incluyendo pagos pendientes
-      fechaActual: new Date().toISOString().split('T')[0] // Fecha actual en formato YYYY-MM-DD
+      fechaActual: new Date().toISOString().split("T")[0], // Fecha actual en formato YYYY-MM-DD
     };
   },
   mounted() {
@@ -491,19 +600,22 @@ export default {
     mostrarModal(nuevoValor) {
       if (nuevoValor && this.ventaSeleccionada) {
         // Si se intenta abrir el modal y la venta tiene fecha
-        if (this.ventaSeleccionada.id && this.estaCajaCerrada(this.ventaSeleccionada)) {
+        if (
+          this.ventaSeleccionada.id &&
+          this.estaCajaCerrada(this.ventaSeleccionada)
+        ) {
           // Cerrar el modal inmediatamente
           this.$nextTick(() => {
             this.mostrarModal = false;
           });
-          
+
           Swal.fire({
             icon: "error",
             title: "Operación no permitida",
             text: "No se puede editar esta venta porque ya está cerrada.",
             background: "#18181b",
             color: "#fff",
-            confirmButtonColor: "#dc3545"
+            confirmButtonColor: "#dc3545",
           });
         }
       }
@@ -517,18 +629,18 @@ export default {
           this.$nextTick(() => {
             this.mostrarPagarModal = false;
           });
-          
+
           Swal.fire({
             icon: "error",
             title: "Operación no permitida",
             text: "No se pueden registrar pagos para esta venta porque ya está cerrada.",
             background: "#18181b",
             color: "#fff",
-            confirmButtonColor: "#dc3545"
+            confirmButtonColor: "#dc3545",
           });
         }
       }
-    }
+    },
   },
   methods: {
     onFechaChange() {
@@ -558,8 +670,10 @@ export default {
         // Estado: null si no hay filtro, "completo", "pendiente" o "cerrado" si hay filtro
         let estadoFiltro = null;
         if (this.filters.estado?.value === true) estadoFiltro = "completo";
-        else if (this.filters.estado?.value === false) estadoFiltro = "pendiente";
-        else if (this.filters.estado?.value === 'cerrado') estadoFiltro = "cerrado";
+        else if (this.filters.estado?.value === false)
+          estadoFiltro = "pendiente";
+        else if (this.filters.estado?.value === "cerrado")
+          estadoFiltro = "cerrado";
 
         const filtros = {
           clienteNombre: this.filters.cliente?.value || undefined,
@@ -582,10 +696,10 @@ export default {
           const montoPagado = pagos.reduce((acc, p) => acc + p.monto, 0);
           const estado = montoPagado >= venta.totalVenta;
           const nombresProductos = venta.detalles.map((d) => d.nombreProducto);
-          
+
           // Ya no necesitamos verificar el estado de la caja por fecha
           // El estado cerrado viene directamente en el campo cierreDiarioId
-          
+
           return {
             cliente: venta.clienteNombre,
             producto: nombresProductos.join(", "),
@@ -644,14 +758,14 @@ export default {
     crearVenta() {
       // Crear un objeto venta temporal con la fecha actual para verificar
       const ventaTemporal = {
-        fechaOriginal: this.fechaActual
+        fechaOriginal: this.fechaActual,
       };
-      
+
       // Verificar si la caja del día actual está cerrada
       if (!this.verificarModalPermitido(ventaTemporal)) {
         return;
       }
-      
+
       this.ventaSeleccionada = this.nuevaVentaVacia();
       this.mostrarModal = true;
     },
@@ -670,11 +784,11 @@ export default {
           title: "Error",
           text: "No se encontró el ID de la venta para editar.",
           background: "#18181b",
-          color: "#fff"
+          color: "#fff",
         });
         return;
       }
-      
+
       // Verificar si la caja está cerrada para esta venta
       if (!this.verificarModalPermitido(venta)) {
         return;
@@ -686,25 +800,25 @@ export default {
           const data = res.data.venta;
           if (!data.clienteId || data.clienteId <= 0) {
             Swal.fire({
-              icon: "error", 
-              title: "Error", 
+              icon: "error",
+              title: "Error",
               text: "Cliente inválido o no encontrado.",
               background: "#18181b",
-              color: "#fff"
+              color: "#fff",
             });
             return;
           }
           if (!Array.isArray(data.detalles)) {
             Swal.fire({
-              icon: "error", 
-              title: "Error", 
+              icon: "error",
+              title: "Error",
               text: "Detalles de venta no encontrados.",
               background: "#18181b",
-              color: "#fff"
+              color: "#fff",
             });
             return;
           }
-          
+
           // Guardar la venta original completa para mantener todos los datos
           this.ventaOriginal = data;
 
@@ -728,11 +842,11 @@ export default {
         .catch((error) => {
           console.error("Error al cargar la venta:", error);
           Swal.fire({
-            icon: "error", 
-            title: "Error", 
+            icon: "error",
+            title: "Error",
             text: "No se pudo cargar la venta para editar.",
             background: "#18181b",
-            color: "#fff"
+            color: "#fff",
           });
         })
         .finally(() => {
@@ -782,25 +896,41 @@ export default {
     },
 
     guardarVenta(data) {
-      if (!data.cliente || !data.detalles || data.detalles.length === 0) {
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Debe seleccionar un cliente y al menos un producto.",
-          background: "#18181b",
-          color: "#fff",
-          customClass: {
-            container: 'swal-container-class'
-          }
-        });
-        return;
+      // Verificar si la venta está pagada y se intenta eliminar un producto
+      if (
+        data.id &&
+        this.ventaOriginal &&
+        this.ventaOriginal.pagos.length > 0
+      ) {
+        const productosOriginales = this.ventaOriginal.detalles.map(
+          (d) => d.productoServicioId
+        );
+        const productosActuales = data.detalles.map(
+          (d) => d.productoServicioId
+        );
+
+        const productosEliminados = productosOriginales.filter(
+          (id) => !productosActuales.includes(id)
+        );
+
+        if (productosEliminados.length > 0) {
+          Swal.fire({
+            icon: "warning",
+            title: "Acción no permitida",
+            text: "Debe eliminar los pagos registrados antes de eliminar productos de una venta pagada.",
+            background: "#18181b",
+            color: "#fff",
+            confirmButtonColor: "#dc3545",
+          });
+          return;
+        }
       }
-      
+
       // Verificar si es una edición o una nueva venta
       if (data.id) {
         // Para ediciones, verificar si la caja está cerrada
         // Buscar la venta en la lista para verificar si la caja está cerrada
-        const ventaExistente = this.ventas.find(v => v.id === data.id);
+        const ventaExistente = this.ventas.find((v) => v.id === data.id);
         if (ventaExistente && !this.verificarModalPermitido(ventaExistente)) {
           Swal.fire({
             icon: "error",
@@ -810,27 +940,27 @@ export default {
             color: "#fff",
             confirmButtonColor: "#dc3545",
             customClass: {
-              container: 'swal-container-class'
-            }
+              container: "swal-container-class",
+            },
           });
           return;
         }
-        
+
         // Es una edición, mostrar confirmación primero
         Swal.fire({
-          title: '¿Modificar esta venta?',
-          text: 'Se actualizarán los datos de la venta seleccionada',
-          icon: 'question',
+          title: "¿Modificar esta venta?",
+          text: "Se actualizarán los datos de la venta seleccionada",
+          icon: "question",
           showCancelButton: true,
-          confirmButtonColor: '#28a745',
-          cancelButtonColor: '#6c757d',
-          confirmButtonText: 'Sí, modificar',
-          cancelButtonText: 'Cancelar',
-          background: '#18181b',
-          color: '#fff',
+          confirmButtonColor: "#28a745",
+          cancelButtonColor: "#6c757d",
+          confirmButtonText: "Sí, modificar",
+          cancelButtonText: "Cancelar",
+          background: "#18181b",
+          color: "#fff",
           customClass: {
-            container: 'swal-container-class'
-          }
+            container: "swal-container-class",
+          },
         }).then((result) => {
           if (result.isConfirmed) {
             // Preparar solo los detalles para actualizar
@@ -840,7 +970,7 @@ export default {
               precioUnitario: d.precioUnitario,
               observacion: d.observacion || null,
             }));
-            
+
             // Usar el nuevo método que solo actualiza los detalles
             VentaService.actualizarDetallesVenta(data.id, detalles)
               .then(() => {
@@ -852,8 +982,8 @@ export default {
                   timer: 2000,
                   showConfirmButton: false,
                   customClass: {
-                    container: 'swal-container-class'
-                  }
+                    container: "swal-container-class",
+                  },
                 });
                 this.cerrarModal();
                 this.obtenerVentas(this.currentPage, this.pageSize);
@@ -861,14 +991,14 @@ export default {
               .catch((err) => {
                 console.error("Error al actualizar venta:", err);
                 Swal.fire({
-                  icon: "error", 
-                  title: "Error", 
+                  icon: "error",
+                  title: "Error",
                   text: "No se pudo actualizar la venta.",
                   background: "#18181b",
                   color: "#fff",
                   customClass: {
-                    container: 'swal-container-class'
-                  }
+                    container: "swal-container-class",
+                  },
                 });
               });
           }
@@ -885,12 +1015,12 @@ export default {
             color: "#fff",
             confirmButtonColor: "#dc3545",
             customClass: {
-              container: 'swal-container-class'
-            }
+              container: "swal-container-class",
+            },
           });
           return;
         }
-        
+
         // Es una nueva venta, usar el método de creación
         const payload = {
           clienteId: data.cliente.id,
@@ -901,7 +1031,7 @@ export default {
             observacion: d.observacion || null,
           })),
         };
-        
+
         VentaService.crearVenta(payload)
           .then(() => {
             Swal.fire({
@@ -912,8 +1042,8 @@ export default {
               timer: 2000,
               showConfirmButton: false,
               customClass: {
-                container: 'swal-container-class'
-              }
+                container: "swal-container-class",
+              },
             });
             this.cerrarModal();
             this.obtenerVentas(this.currentPage, this.pageSize);
@@ -921,14 +1051,14 @@ export default {
           .catch((err) => {
             console.error("Error al guardar venta:", err);
             Swal.fire({
-              icon: "error", 
-              title: "Error", 
+              icon: "error",
+              title: "Error",
               text: "No se pudo registrar la venta.",
               background: "#18181b",
               color: "#fff",
               customClass: {
-                container: 'swal-container-class'
-              }
+                container: "swal-container-class",
+              },
             });
           });
       }
@@ -939,7 +1069,7 @@ export default {
       if (!this.verificarModalPermitido(venta)) {
         return;
       }
-      
+
       const pendiente = venta.totalVenta - (venta.montoPagado || 0);
       this.ventaSeleccionadaParaPago = venta;
       this.pagoForm = {
@@ -952,36 +1082,40 @@ export default {
       this.mostrarPagarModal = true;
       this.pagosPendientes = []; // Limpiar pagos pendientes
       this.totalPagado = venta.montoPagado || 0; // Inicializar con lo ya pagado
-      
+
       // Cargar los pagos existentes
       this.cargarPagosExistentes(venta.id);
     },
-    
+
     async cargarPagosExistentes(atencionId) {
       this.pagosCargando = true;
       try {
         // En lugar de usar el endpoint específico de pagos, usamos el mismo endpoint
         // que se usa en verDetalles, que ya sabemos que funciona
         const response = await VentaService.getVentaById(atencionId);
-        console.log('Respuesta de venta con pagos:', response.data);
-        
+        console.log("Respuesta de venta con pagos:", response.data);
+
         // Extraer los pagos de la venta
         if (response.data && response.data.venta && response.data.venta.pagos) {
           this.pagosRegistrados = response.data.venta.pagos;
           // Actualizar el total pagado con los pagos registrados
-          const montoPagadoRegistrado = this.pagosRegistrados.reduce((acc, p) => acc + p.monto, 0);
+          const montoPagadoRegistrado = this.pagosRegistrados.reduce(
+            (acc, p) => acc + p.monto,
+            0
+          );
           this.totalPagado = montoPagadoRegistrado;
-          
+
           // Actualizar el pendiente en el formulario
-          const pendiente = this.ventaSeleccionadaParaPago.totalVenta - this.totalPagado;
+          const pendiente =
+            this.ventaSeleccionadaParaPago.totalVenta - this.totalPagado;
           this.pagoForm.pendiente = pendiente > 0 ? pendiente : 0;
           this.pagoForm.monto = this.pagoForm.pendiente.toFixed(2);
         } else {
-          console.error('No se encontraron pagos en la respuesta');
+          console.error("No se encontraron pagos en la respuesta");
           this.pagosRegistrados = [];
         }
-        
-        console.log('Pagos registrados:', this.pagosRegistrados);
+
+        console.log("Pagos registrados:", this.pagosRegistrados);
       } catch (error) {
         console.error("Error al cargar pagos:", error);
         this.pagosRegistrados = [];
@@ -997,17 +1131,19 @@ export default {
         this.mensajeError = "Ingrese un monto válido mayor a cero.";
         return;
       }
-      
+
       // Calcular el total que se pagaría con este nuevo pago
       const totalConNuevoPago = this.totalPagado + monto;
-      
+
       // Verificar que no exceda el total de la venta
       if (totalConNuevoPago > this.ventaSeleccionadaParaPago.totalVenta) {
         this.montoInvalido = true;
-        this.mensajeError = `El monto excede el total pendiente. Máximo: $${(this.ventaSeleccionadaParaPago.totalVenta - this.totalPagado).toFixed(2)}.`;
+        this.mensajeError = `El monto excede el total pendiente. Máximo: $${(
+          this.ventaSeleccionadaParaPago.totalVenta - this.totalPagado
+        ).toFixed(2)}.`;
         return;
       }
-      
+
       this.montoInvalido = false;
       this.mensajeError = "";
     },
@@ -1015,32 +1151,35 @@ export default {
     // Método para agregar un pago temporal (no se guarda en BD todavía)
     agregarPagoTemporal() {
       // Verificar si la caja está cerrada para la venta seleccionada
-      if (this.ventaSeleccionadaParaPago && this.estaCajaCerrada(this.ventaSeleccionadaParaPago)) {
+      if (
+        this.ventaSeleccionadaParaPago &&
+        this.estaCajaCerrada(this.ventaSeleccionadaParaPago)
+      ) {
         Swal.fire({
           icon: "error",
           title: "Operación no permitida",
           text: "No se pueden agregar pagos porque la venta está cerrada.",
           background: "#18181b",
           color: "#fff",
-          confirmButtonColor: "#dc3545"
+          confirmButtonColor: "#dc3545",
         });
         return;
       }
-      
+
       this.validarMonto();
       if (this.montoInvalido || !this.pagoForm.metodo) return;
-      
+
       // Verificar que no se exceda el total
       const monto = parseFloat(this.pagoForm.monto);
       const nuevoTotal = this.totalPagado + monto;
-      
+
       if (nuevoTotal > this.ventaSeleccionadaParaPago.totalVenta) {
         Swal.fire({
           icon: "error",
           title: "Error",
           text: "El monto total de pagos excedería el valor de la venta.",
           background: "#18181b",
-          color: "#fff"
+          color: "#fff",
         });
         return;
       }
@@ -1055,51 +1194,59 @@ export default {
 
       // Agregar a la lista de pagos pendientes
       this.pagosPendientes.push(nuevoPago);
-      
+
       // Actualizar el total pagado
       this.totalPagado += monto;
-      
+
       // Actualizar el pendiente
-      const pendiente = this.ventaSeleccionadaParaPago.totalVenta - this.totalPagado;
+      const pendiente =
+        this.ventaSeleccionadaParaPago.totalVenta - this.totalPagado;
       this.pagoForm.pendiente = pendiente > 0 ? pendiente : 0;
-      
+
       // Limpiar el formulario para un nuevo pago
       this.pagoForm.metodo = "";
-      this.pagoForm.monto = this.pagoForm.pendiente > 0 ? this.pagoForm.pendiente.toFixed(2) : "0.00";
-      
+      this.pagoForm.monto =
+        this.pagoForm.pendiente > 0
+          ? this.pagoForm.pendiente.toFixed(2)
+          : "0.00";
+
       // Ya no mostramos mensaje de éxito al agregar un pago
     },
-    
+
     // Método para eliminar un pago temporal
     eliminarPagoTemporal(index) {
       // Verificar si la venta está cerrada
-      if (this.ventaSeleccionadaParaPago && this.estaCajaCerrada(this.ventaSeleccionadaParaPago)) {
+      if (
+        this.ventaSeleccionadaParaPago &&
+        this.estaCajaCerrada(this.ventaSeleccionadaParaPago)
+      ) {
         Swal.fire({
           icon: "error",
           title: "Operación no permitida",
           text: "No se pueden eliminar pagos porque la venta está cerrada.",
           background: "#18181b",
           color: "#fff",
-          confirmButtonColor: "#dc3545"
+          confirmButtonColor: "#dc3545",
         });
         return;
       }
-      
+
       if (index < 0 || index >= this.pagosPendientes.length) return;
-      
+
       const pago = this.pagosPendientes[index];
-      
+
       // Actualizar el total pagado
       this.totalPagado -= pago.monto;
-      
+
       // Eliminar el pago de la lista
       this.pagosPendientes.splice(index, 1);
-      
+
       // Actualizar el pendiente
-      const pendiente = this.ventaSeleccionadaParaPago.totalVenta - this.totalPagado;
+      const pendiente =
+        this.ventaSeleccionadaParaPago.totalVenta - this.totalPagado;
       this.pagoForm.pendiente = pendiente;
       this.pagoForm.monto = pendiente.toFixed(2);
-      
+
       // Mostrar mensaje
       Swal.fire({
         icon: "info",
@@ -1110,8 +1257,8 @@ export default {
         showConfirmButton: false,
       });
     },
-    
-    // Método para registrar un pago en la BD
+
+    // Método para registrar un pago in
     async registrarPago(pago) {
       try {
         await VentaService.RegistrarPago(pago);
@@ -1121,29 +1268,41 @@ export default {
         throw error;
       }
     },
-    
+
     async actualizarVentaSeleccionada(actualizarTabla = true) {
       try {
         // Obtener la venta actualizada
-        const response = await VentaService.getVentaById(this.ventaSeleccionadaParaPago.id);
+        const response = await VentaService.getVentaById(
+          this.ventaSeleccionadaParaPago.id
+        );
         const venta = response.data.venta;
-        
+
         // Calcular el monto pagado y pendiente
         const pagos = venta.pagos || [];
         const montoPagado = pagos.reduce((acc, p) => acc + p.monto, 0);
         const pendiente = venta.totalVenta - montoPagado;
-        
+
         // Actualizar la venta seleccionada
         this.ventaSeleccionadaParaPago = {
           ...this.ventaSeleccionadaParaPago,
           montoPagado,
-          estado: montoPagado >= venta.totalVenta
+          estado: montoPagado >= venta.totalVenta,
         };
-        
+
         // Actualizar el monto pendiente en el formulario
         this.pagoForm.pendiente = pendiente;
-        
-        // Actualizar la lista de ventas solo si se solicita
+        this.pagoForm.monto = pendiente > 0 ? pendiente.toFixed(2) : "0.00";
+
+        // Actualizar el estado en la tabla de ventas inmediatamente
+        const ventaIndex = this.ventas.findIndex(
+          (v) => v.id === this.ventaSeleccionadaParaPago.id
+        );
+        if (ventaIndex !== -1) {
+          this.ventas[ventaIndex].estado = montoPagado >= venta.totalVenta;
+          this.ventas[ventaIndex].montoPagado = montoPagado;
+        }
+
+        // Actualizar la lista de ventas completa solo si se solicita
         if (actualizarTabla) {
           this.obtenerVentas(this.currentPage, this.pageSize);
         }
@@ -1151,66 +1310,96 @@ export default {
         console.error("Error al actualizar venta:", error);
       }
     },
-    
+
     confirmarEliminarPago(pago) {
       // Verificar si la caja está cerrada para la venta seleccionada
-      if (this.ventaSeleccionadaParaPago && !this.verificarModalPermitido(this.ventaSeleccionadaParaPago)) {
+      if (
+        this.ventaSeleccionadaParaPago &&
+        !this.verificarModalPermitido(this.ventaSeleccionadaParaPago)
+      ) {
         return;
       }
-      
+
       // Usar pagoId directamente
       if (!pago.pagoId) {
-        console.error('No se pudo encontrar el ID del pago:', pago);
+        console.error("No se pudo encontrar el ID del pago:", pago);
         Swal.fire({
           icon: "error",
           title: "Error",
           text: "No se pudo identificar el pago a eliminar.",
           background: "#18181b",
-          color: "#fff"
+          color: "#fff",
         });
         return;
       }
-      
+
       Swal.fire({
-        title: '¿Eliminar este pago?',
-        text: `Método: ${pago.metodoPago}, Monto: ${this.formatoMoneda(pago.monto)}`,
-        icon: 'warning',
+        title: "¿Eliminar este pago?",
+        text: `Método: ${pago.metodoPago}, Monto: ${this.formatoMoneda(
+          pago.monto
+        )}`,
+        icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar',
-        background: '#18181b',
-        color: '#fff'
+        confirmButtonColor: "#dc3545",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Sí, eliminar",
+        cancelButtonText: "Cancelar",
+        background: "#18181b",
+        color: "#fff",
       }).then(async (result) => {
         if (result.isConfirmed) {
           await this.eliminarPago(pago.pagoId);
         }
       });
     },
-    
+
     async eliminarPago(pagoId) {
       try {
         // Verificar si la venta está cerrada
-        if (this.ventaSeleccionadaParaPago && this.estaCajaCerrada(this.ventaSeleccionadaParaPago)) {
+        if (
+          this.ventaSeleccionadaParaPago &&
+          this.estaCajaCerrada(this.ventaSeleccionadaParaPago)
+        ) {
           Swal.fire({
             icon: "error",
             title: "Operación no permitida",
             text: "No se pueden eliminar pagos porque la venta está cerrada.",
             background: "#18181b",
             color: "#fff",
-            confirmButtonColor: "#dc3545"
+            confirmButtonColor: "#dc3545",
           });
           return;
         }
-        
-        console.log('Eliminando pago con ID:', pagoId);
+
+        console.log("Eliminando pago con ID:", pagoId);
         await VentaService.eliminarPago(pagoId);
-        
+
         // Actualizar la lista de pagos y el monto pendiente
         await this.cargarPagosExistentes(this.ventaSeleccionadaParaPago.id);
-        await this.actualizarVentaSeleccionada(false); // No actualizar la tabla principal todavía
-        
+
+        // Actualizar el estado de la venta en la tabla inmediatamente
+        // Primero actualizamos la venta seleccionada
+        await this.actualizarVentaSeleccionada(false);
+
+        // Luego actualizamos el estado en la tabla de ventas
+        if (
+          this.ventaSeleccionadaParaPago &&
+          this.ventaSeleccionadaParaPago.id
+        ) {
+          // Encontrar la venta en la tabla y actualizar su estado
+          const ventaIndex = this.ventas.findIndex(
+            (v) => v.id === this.ventaSeleccionadaParaPago.id
+          );
+          if (ventaIndex !== -1) {
+            // Calcular si está pagada basado en el total pagado actual
+            const pagado =
+              this.totalPagado >= this.ventaSeleccionadaParaPago.totalVenta;
+            // Actualizar el estado en la tabla
+            this.ventas[ventaIndex].estado = pagado;
+            this.ventas[ventaIndex].montoPagado = this.totalPagado;
+          }
+        }
+
         Swal.fire({
           icon: "success",
           title: "Pago eliminado",
@@ -1224,9 +1413,11 @@ export default {
         Swal.fire({
           icon: "error",
           title: "Error",
-          text: "No se pudo eliminar el pago. Detalles: " + (error.response?.data?.message || error.message),
+          text:
+            "No se pudo eliminar el pago. Detalles: " +
+            (error.response?.data?.message || error.message),
           background: "#18181b",
-          color: "#fff"
+          color: "#fff",
         });
       }
     },
@@ -1235,16 +1426,16 @@ export default {
       // Solo mostrar confirmación si hay pagos pendientes
       if (this.pagosPendientes.length > 0) {
         Swal.fire({
-          title: '¿Cerrar sin guardar?',
-          text: 'Hay pagos pendientes que no se han guardado. ¿Desea cerrar sin guardarlos?',
-          icon: 'warning',
+          title: "¿Cerrar sin guardar?",
+          text: "Hay pagos pendientes que no se han guardado. ¿Desea cerrar sin guardarlos?",
+          icon: "warning",
           showCancelButton: true,
-          confirmButtonColor: '#dc3545',
-          cancelButtonColor: '#6c757d',
-          confirmButtonText: 'Sí, cerrar',
-          cancelButtonText: 'No, continuar editando',
-          background: '#18181b',
-          color: '#fff'
+          confirmButtonColor: "#dc3545",
+          cancelButtonColor: "#6c757d",
+          confirmButtonText: "Sí, cerrar",
+          cancelButtonText: "No, continuar editando",
+          background: "#18181b",
+          color: "#fff",
         }).then((result) => {
           if (result.isConfirmed) {
             this.cerrarModalPagos();
@@ -1254,11 +1445,11 @@ export default {
         this.cerrarModalPagos();
       }
     },
-    
+
     cerrarPagarModal() {
       this.cerrarModalPagos();
     },
-    
+
     cerrarModalPagos() {
       this.mostrarPagarModal = false;
       this.ventaSeleccionadaParaPago = null;
@@ -1273,7 +1464,7 @@ export default {
       this.pagosPendientes = [];
       this.totalPagado = 0;
     },
-    
+
     // Método para mostrar confirmación de pagos con SweetAlert2
     mostrarConfirmacionPagos() {
       if (this.pagosPendientes.length === 0) {
@@ -1282,105 +1473,126 @@ export default {
           title: "Sin pagos pendientes",
           text: "No hay pagos nuevos para confirmar.",
           background: "#18181b",
-          color: "#fff"
+          color: "#fff",
         });
         return;
       }
-      
+
       // Calcular el total a pagar
-      const totalPendiente = this.pagosPendientes.reduce((total, pago) => total + pago.monto, 0);
-      
+      const totalPendiente = this.pagosPendientes.reduce(
+        (total, pago) => total + pago.monto,
+        0
+      );
+
       // Crear lista HTML de pagos pendientes
       let listaPagos = '<div class="pagos-lista-swal">';
-      this.pagosPendientes.forEach(pago => {
+      this.pagosPendientes.forEach((pago) => {
         listaPagos += `<div class="pago-item-swal">
           <span class="pago-metodo-swal">${pago.metodoPago}</span>
           <span class="pago-monto-swal">${this.formatoMoneda(pago.monto)}</span>
         </div>`;
       });
-      listaPagos += '</div>';
-      
+      listaPagos += "</div>";
+
       // Mensaje adicional si la venta quedará pagada
-      const mensajeEstado = this.totalPagado >= this.ventaSeleccionadaParaPago?.totalVenta ? 
-        '<div class="estado-completo-swal"><i class="pi pi-check-circle"></i> La venta quedará en estado PAGADO</div>' : '';
-      
+      const mensajeEstado =
+        this.totalPagado >= this.ventaSeleccionadaParaPago?.totalVenta
+          ? '<div class="estado-completo-swal"><i class="pi pi-check-circle"></i> La venta quedará en estado PAGADO</div>'
+          : "";
+
       // Verificar si la caja está cerrada
       const cajaCerrada = this.estaCajaCerrada(this.ventaSeleccionadaParaPago);
-      
+
       Swal.fire({
-        title: '¿Confirmar los siguientes pagos?',
+        title: "¿Confirmar los siguientes pagos?",
         html: `
           <div class="confirmacion-swal">
             <div class="info-item-swal">
               <span class="info-label-swal">Cliente:</span>
-              <span class="info-value-swal">${this.ventaSeleccionadaParaPago?.cliente}</span>
+              <span class="info-value-swal">${
+                this.ventaSeleccionadaParaPago?.cliente
+              }</span>
             </div>
             <div class="info-item-swal">
               <span class="info-label-swal">Total venta:</span>
-              <span class="info-value-swal">${this.formatoMoneda(this.ventaSeleccionadaParaPago?.totalVenta || 0)}</span>
+              <span class="info-value-swal">${this.formatoMoneda(
+                this.ventaSeleccionadaParaPago?.totalVenta || 0
+              )}</span>
             </div>
             <div class="info-item-swal">
               <span class="info-label-swal">Total a pagar:</span>
-              <span class="info-value-swal">${this.formatoMoneda(totalPendiente)}</span>
+              <span class="info-value-swal">${this.formatoMoneda(
+                totalPendiente
+              )}</span>
             </div>
-            ${cajaCerrada ? `
+            ${
+              cajaCerrada
+                ? `
             <div class="info-item-swal">
               <span class="info-label-swal">Estado caja:</span>
               <span class="info-value-swal" style="color: #3498db;">CERRADA</span>
-            </div>` : ''}
+            </div>`
+                : ""
+            }
             ${listaPagos}
             ${mensajeEstado}
           </div>
         `,
-        icon: 'question',
+        icon: "question",
         showCancelButton: true,
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Confirmar',
-        cancelButtonText: 'Cancelar',
-        background: '#18181b',
-        color: '#fff'
+        confirmButtonColor: "#28a745",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Confirmar",
+        cancelButtonText: "Cancelar",
+        background: "#18181b",
+        color: "#fff",
       }).then((result) => {
         if (result.isConfirmed) {
           this.confirmarPagos();
         }
       });
     },
-    
+
     // Calcular el total de pagos pendientes
     calcularTotalPagosPendientes() {
-      return this.pagosPendientes.reduce((total, pago) => total + pago.monto, 0);
+      return this.pagosPendientes.reduce(
+        (total, pago) => total + pago.monto,
+        0
+      );
     },
-    
+
     // Método para confirmar y registrar los pagos en la BD
     async confirmarPagos() {
       try {
         // Verificar si la caja está cerrada para la venta seleccionada
-        if (this.ventaSeleccionadaParaPago && !this.verificarModalPermitido(this.ventaSeleccionadaParaPago)) {
+        if (
+          this.ventaSeleccionadaParaPago &&
+          !this.verificarModalPermitido(this.ventaSeleccionadaParaPago)
+        ) {
           return;
         }
-        
+
         // Mostrar indicador de carga
         Swal.fire({
-          title: 'Registrando pagos...',
-          text: 'Por favor espere',
+          title: "Registrando pagos...",
+          text: "Por favor espere",
           allowOutsideClick: false,
           allowEscapeKey: false,
           didOpen: () => {
             Swal.showLoading();
           },
           background: "#18181b",
-          color: "#fff"
+          color: "#fff",
         });
-        
+
         // Registrar cada pago pendiente en la BD
         for (const pago of this.pagosPendientes) {
           await this.registrarPago(pago);
         }
-        
+
         // Actualizar la tabla principal con los cambios
         await this.actualizarVentaSeleccionada(true);
-        
+
         // Mostrar mensaje de éxito
         Swal.fire({
           icon: "success",
@@ -1391,55 +1603,57 @@ export default {
           timer: 2000,
           showConfirmButton: false,
         });
-        
+
         // Cerrar el modal de pagos
         this.cerrarPagarModal();
       } catch (error) {
         console.error("Error al confirmar pagos:", error);
         Swal.fire({
-          icon: "error", 
-          title: "Error", 
-          text: "No se pudieron registrar los pagos: " + (error.response?.data?.message || error.message),
+          icon: "error",
+          title: "Error",
+          text:
+            "No se pudieron registrar los pagos: " +
+            (error.response?.data?.message || error.message),
           background: "#18181b",
-          color: "#fff"
+          color: "#fff",
         });
       }
     },
-    
+
     // Método para cancelar los pagos
     cancelarPagos() {
       // Preguntar al usuario si está seguro de cancelar
       Swal.fire({
-        title: '¿Cancelar los cambios?',
-        text: 'Los pagos registrados se mantendrán en el sistema, pero no se actualizará el estado de la venta.',
-        icon: 'question',
+        title: "¿Cancelar los cambios?",
+        text: "Los pagos registrados se mantendrán en el sistema, pero no se actualizará el estado de la venta.",
+        icon: "question",
         showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, cancelar',
-        cancelButtonText: 'No, seguir editando',
-        background: '#18181b',
-        color: '#fff'
+        confirmButtonColor: "#dc3545",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Sí, cancelar",
+        cancelButtonText: "No, seguir editando",
+        background: "#18181b",
+        color: "#fff",
       }).then((result) => {
         if (result.isConfirmed) {
           this.cerrarPagarModal();
         }
       });
     },
-    
+
     formatearFecha(fechaStr) {
       try {
         if (!fechaStr) return "";
-        
+
         const fecha = new Date(fechaStr);
         if (isNaN(fecha.getTime())) return "";
-        
-        return fecha.toLocaleDateString('es-AR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
+
+        return fecha.toLocaleDateString("es-AR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
         });
       } catch (e) {
         console.error("Error al formatear fecha:", e);
@@ -1453,38 +1667,41 @@ export default {
         currency: "ARS",
       }).format(valor);
     },
-    
+
     // Método para obtener la fecha formateada de una cadena de fecha
     obtenerFechaFormateada(fechaStr) {
       try {
         // Si la fecha viene en formato dd/mm/yyyy (como en la tabla)
-        if (fechaStr.includes('/')) {
-          const partes = fechaStr.split('/');
+        if (fechaStr.includes("/")) {
+          const partes = fechaStr.split("/");
           if (partes.length === 3) {
             // Convertir de dd/mm/yyyy a yyyy-mm-dd
-            return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+            return `${partes[2]}-${partes[1].padStart(
+              2,
+              "0"
+            )}-${partes[0].padStart(2, "0")}`;
           }
         }
-        
+
         // Si es otro formato, intentar convertir normalmente
         const fecha = new Date(fechaStr);
         if (!isNaN(fecha.getTime())) {
-          return fecha.toISOString().split('T')[0];
+          return fecha.toISOString().split("T")[0];
         }
-        
+
         return null;
       } catch (e) {
         console.error("Error al formatear fecha:", e);
         return null;
       }
     },
-    
+
     // Método para verificar si una venta está cerrada
     estaCajaCerrada(venta) {
       if (!venta) return false;
       return venta.cierreDiarioId != null;
     },
-    
+
     // Método para obtener el texto del estado de la venta
     getEstadoVenta(venta) {
       // Si tiene CierreDiarioId, mostrar "Cerrado" sin importar el estado de pago
@@ -1494,7 +1711,7 @@ export default {
       // Si no, mostrar el estado normal
       return venta.estado ? "Pagado" : "Pendiente";
     },
-    
+
     // Método para obtener la severidad del tag según el estado
     getEstadoSeverity(venta) {
       if (this.estaCajaCerrada(venta)) {
@@ -1502,11 +1719,11 @@ export default {
       }
       return venta.estado ? "success" : "warning"; // Verde para "Pagado", amarillo para "Pendiente"
     },
-    
+
     // Método para verificar si se puede abrir un modal para una venta
     verificarModalPermitido(venta) {
       if (!venta) return true;
-      
+
       // Verificar si la venta está cerrada (tiene CierreDiarioId)
       if (this.estaCajaCerrada(venta)) {
         Swal.fire({
@@ -1515,15 +1732,122 @@ export default {
           text: "No se puede realizar esta operación porque la venta ya está cerrada.",
           background: "#18181b",
           color: "#fff",
-          confirmButtonColor: "#dc3545"
+          confirmButtonColor: "#dc3545",
         });
         return false;
       }
-      
+
       return true;
     },
-    
-    // Ya no necesitamos estos métodos porque ahora usamos cierreDiarioId
+
+    // Método para obtener el mensaje de tooltip para el botón Agregar Pago
+    getAgregarPagoTooltip() {
+      // Si la venta está cerrada
+      if (
+        this.ventaSeleccionadaParaPago &&
+        this.estaCajaCerrada(this.ventaSeleccionadaParaPago)
+      ) {
+        return {
+          value: "No se puede agregar pagos: la venta está cerrada",
+          class: "tooltip-error",
+        };
+      }
+
+      // Si el total ya está pagado
+      if (this.totalPagado >= this.ventaSeleccionadaParaPago?.totalVenta) {
+        return {
+          value: "El monto total ya está pagado",
+          class: "tooltip-info",
+        };
+      }
+
+      // Si no se ha seleccionado método de pago
+      if (!this.pagoForm.metodo) {
+        return {
+          value: "Seleccione un método de pago para continuar",
+          class: "tooltip-warning",
+        };
+      }
+
+      // Si el monto es inválido
+      if (this.montoInvalido) {
+        return {
+          value: this.mensajeError || "El monto ingresado no es válido",
+          class: "tooltip-error",
+        };
+      }
+
+      // Si todo está bien, no mostrar tooltip
+      return null;
+    },
+
+    eliminarProductoServicio(index) {
+      // Verificar si la venta está pagada
+      if (this.ventaOriginal && this.ventaOriginal.pagos.length > 0) {
+        Swal.fire({
+          icon: "warning",
+          title: "Acción no permitida",
+          text: "Debe eliminar los pagos registrados antes de eliminar productos o servicios de una venta pagada.",
+          background: "#18181b",
+          color: "#fff",
+          confirmButtonColor: "#dc3545",
+        });
+        return;
+      }
+
+      // Eliminar el producto o servicio de la lista
+      this.ventaSeleccionada.detalles.splice(index, 1);
+    },
+
+    async confirmarEliminarVenta(venta) {
+      if (!venta.id) {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "No se encontró el ID de la venta para eliminar.",
+          background: "#18181b",
+          color: "#fff",
+        });
+        return;
+      }
+
+      Swal.fire({
+        title: "¿Eliminar esta venta?",
+        text: "Esta acción no se puede deshacer.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#dc3545",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Sí, eliminar",
+        cancelButtonText: "Cancelar",
+        background: "#18181b",
+        color: "#fff",
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            await VentaService.eliminarVenta(venta.id);
+            Swal.fire({
+              icon: "success",
+              title: "Venta eliminada",
+              background: "#18181b",
+              color: "#fff",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            this.obtenerVentas(this.currentPage, this.pageSize);
+          } catch (error) {
+            console.error("Error al eliminar venta:", error);
+            Swal.fire({
+              icon: "error",
+              title: "Error",
+              text: "No se pudo eliminar la venta.",
+              background: "#18181b",
+              color: "#fff",
+            });
+          }
+        }
+      });
+    },
   },
 };
 </script>
@@ -1747,9 +2071,14 @@ export default {
 =========================== */
 .acciones-botones {
   display: flex;
+  flex-direction: row; /* Alineación horizontal */
   gap: 0.25rem;
-  justify-content: center;
+  justify-content: flex-start; /* Alineación izquierda */
   align-items: center;
+}
+
+.espacio-izquierda {
+  width: 60px; /* Ajusta el tamaño del espacio según sea necesario */
 }
 
 :deep(.p-button) {
@@ -1763,8 +2092,11 @@ export default {
   line-height: 1;
 }
 
-:deep(.p-button:last-child) {
-  margin-right: 0;
+.icono-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
 }
 
 /* ===========================
@@ -1799,8 +2131,8 @@ export default {
 }
 
 :deep(.p-tag-secondary) {
-  background-color: #aaaaaa !important;
-  color: #222222 !important;
+  background-color: #d3d3d3 !important; /* Gris claro */
+  color: #333333 !important; /* Texto oscuro */
   font-weight: 600;
   border-radius: 12px !important;
   padding: 0.2rem 0.6rem !important;
@@ -2209,9 +2541,35 @@ export default {
   border-top: 1px solid #333;
 }
 
-/* Estilos para tooltip de error */
+/* Estilos para tooltips */
 :deep(.tooltip-error) {
   background-color: #dc3545 !important;
+  color: white !important;
+  font-weight: 600 !important;
+  padding: 0.5rem 0.75rem !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+  font-size: 0.9rem !important;
+  max-width: 250px !important;
+  text-align: center !important;
+  z-index: 9999 !important;
+}
+
+:deep(.tooltip-warning) {
+  background-color: #ffc107 !important;
+  color: #212529 !important;
+  font-weight: 600 !important;
+  padding: 0.5rem 0.75rem !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+  font-size: 0.9rem !important;
+  max-width: 250px !important;
+  text-align: center !important;
+  z-index: 9999 !important;
+}
+
+:deep(.tooltip-info) {
+  background-color: #17a2b8 !important;
   color: white !important;
   font-weight: 600 !important;
   padding: 0.5rem 0.75rem !important;
@@ -2286,6 +2644,32 @@ export default {
 .formulario-pago :deep(.p-dropdown) {
   position: relative;
   z-index: 2;
+}
+
+/* Estilos para el indicador de campo requerido y mensaje de ayuda */
+.required-indicator {
+  color: #ffc107;
+  font-weight: bold;
+  margin-left: 4px;
+}
+
+.label-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.metodo-hint {
+  color: #ffc107;
+  font-size: 0.75rem;
+  font-style: italic;
+  margin-left: 0.5rem;
+}
+
+.p-dropdown-highlight {
+  border-color: #ffc107 !important;
+  box-shadow: 0 0 0 1px #ffc107 !important;
 }
 
 .formulario-pago :deep(.p-dropdown-panel) {

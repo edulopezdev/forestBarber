@@ -47,7 +47,7 @@
           <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
           <span>Cargando datos...</span>
         </div>
-        
+
         <div v-else class="resumen-container">
           <!-- Resumen unificado -->
           <TablaGlobal
@@ -57,7 +57,7 @@
           >
             <Column
               field="concepto"
-              header="Concepto"
+              header="Controle la caja antes de realizar el cierre del día"
               headerClass="header-align-left header-column"
             >
               <template #body="{ data }">
@@ -67,16 +67,15 @@
                     'resaltado-total': data.total,
                     'fila-concepto': !data.esHeader && !data.total,
                   }"
-                  :colspan="data.esHeader ? 2 : null"
                 >
                   {{ data.concepto }}
                 </div>
               </template>
             </Column>
+
             <Column
               field="monto"
-              header="Monto"
-              headerClass="header-align-right header-column"
+              headerClass="header-align-right header-column monto-centrado"
               style="width: 40%"
             >
               <template #body="{ data }">
@@ -244,7 +243,7 @@ export default {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0); // Establecer a medianoche para evitar problemas de zona horaria
     this.fechaSeleccionada = hoy;
-    
+
     // Pequeño retraso para asegurar que el componente esté completamente montado
     this.$nextTick(() => {
       this.obtenerCierrePorFecha(this.fechaSeleccionada);
@@ -258,13 +257,14 @@ export default {
       this.resumenVentas = [];
       this.resumenPagos = [];
       this.resumenUnificado = [];
-      
+
       try {
         // Asegurar que la fecha esté en formato YYYY-MM-DD
-        const fechaFormateada = fecha instanceof Date ? 
-          fecha.toISOString().split("T")[0] : 
-          new Date(fecha).toISOString().split("T")[0];
-          
+        const fechaFormateada =
+          fecha instanceof Date
+            ? fecha.toISOString().split("T")[0]
+            : new Date(fecha).toISOString().split("T")[0];
+
         const response = await CajaService.getCierrePorFecha(fechaFormateada);
         const cierre = response.data.cierre;
 
@@ -346,32 +346,36 @@ export default {
         Swal.fire({
           icon: "error",
           title: "No se puede cerrar la caja",
-          text: "Hay una diferencia de $" + this.diferenciaPagos.toFixed(2) + " en los pagos. Debe saldar esta diferencia antes de cerrar la caja.",
+          text:
+            "Hay una diferencia de $" +
+            this.diferenciaPagos.toFixed(2) +
+            " en los pagos. Debe saldar esta diferencia antes de cerrar la caja.",
           background: "#18181b",
           color: "#fff",
-          confirmButtonColor: "#dc3545"
+          confirmButtonColor: "#dc3545",
         });
         return;
       }
-      
+
       // Mostrar advertencia sobre el cierre de caja
       Swal.fire({
-        title: '¿Está seguro de cerrar la caja?',
-        html: '<div style="text-align: left; margin-top: 1rem;">' +
-              '<p><strong>IMPORTANTE:</strong> Al cerrar la caja:</p>' +
-              '<ul style="padding-left: 1.5rem;">' +
-              '<li>No se podrán editar las ventas de este día</li>' +
-              '<li>No se podrán registrar nuevos pagos para ventas de este día</li>' +
-              '<li>Esta acción no se puede deshacer</li>' +
-              '</ul></div>',
-        icon: 'warning',
+        title: "¿Está seguro de cerrar la caja?",
+        html:
+          '<div style="text-align: left; margin-top: 1rem;">' +
+          "<p><strong>IMPORTANTE:</strong> Al cerrar la caja:</p>" +
+          '<ul style="padding-left: 1.5rem;">' +
+          "<li>No se podrán editar las ventas de este día</li>" +
+          "<li>No se podrán registrar nuevos pagos para ventas de este día</li>" +
+          "<li>Esta acción no se puede deshacer</li>" +
+          "</ul></div>",
+        icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, cerrar caja',
-        cancelButtonText: 'Cancelar',
-        background: '#18181b',
-        color: '#fff'
+        confirmButtonColor: "#28a745",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Sí, cerrar caja",
+        cancelButtonText: "Cancelar",
+        background: "#18181b",
+        color: "#fff",
       }).then((result) => {
         if (result.isConfirmed) {
           this.mostrarModalCierre = true;
@@ -406,7 +410,7 @@ export default {
         iconColor: iconColors[icon] || "#ffffff",
         backdrop: false,
         customClass: {
-          popup: 'swal-toast-popup',
+          popup: "swal-toast-popup",
         },
       });
     },
@@ -417,10 +421,13 @@ export default {
         Swal.fire({
           icon: "error",
           title: "No se puede cerrar la caja",
-          text: "Hay una diferencia de $" + this.diferenciaPagos.toFixed(2) + " en los pagos. Debe saldar esta diferencia antes de cerrar la caja.",
+          text:
+            "Hay una diferencia de $" +
+            this.diferenciaPagos.toFixed(2) +
+            " en los pagos. Debe saldar esta diferencia antes de cerrar la caja.",
           background: "#18181b",
           color: "#fff",
-          confirmButtonColor: "#dc3545"
+          confirmButtonColor: "#dc3545",
         });
         return;
       }
@@ -489,14 +496,14 @@ export default {
 
         // Encabezado
         pdf.setFontSize(14); // Aumenta el tamaño de la fuente
-        pdf.setTextColor(0, 0, 0);// Color negro
-        pdf.setFont("courier", "bold");// Fuente en negrita
-        pdf.text("FOREST BARBER", 74, posY, { align: "center" });// Centrado
+        pdf.setTextColor(0, 0, 0); // Color negro
+        pdf.setFont("courier", "bold"); // Fuente en negrita
+        pdf.text("FOREST BARBER", 74, posY, { align: "center" }); // Centrado
 
-        posY += 8;// Espacio entre encabezado y título
-        pdf.setFontSize(12);// Tamaño de fuente para el título
-        pdf.setFont("courier", "normal");// Fuente normal
-        pdf.text("CIERRE DE CAJA", 74, posY, { align: "center" });// 
+        posY += 8; // Espacio entre encabezado y título
+        pdf.setFontSize(12); // Tamaño de fuente para el título
+        pdf.setFont("courier", "normal"); // Fuente normal
+        pdf.text("CIERRE DE CAJA", 74, posY, { align: "center" }); //
 
         posY += 8;
         pdf.setFontSize(10);
@@ -1118,5 +1125,13 @@ label {
 
 :global(.swal2-container) {
   z-index: 9999 !important;
+}
+
+/* Centrar verticalmente el título "Monto" */
+.monto-centrado {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
 }
 </style>
