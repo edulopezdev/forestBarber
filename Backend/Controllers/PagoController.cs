@@ -107,7 +107,7 @@ namespace backend.Controllers
                     }
                 );
             }
-            
+
             // Validar que la venta no esté cerrada (asociada a un cierre de caja)
             if (atencion.CierreDiarioId != null)
             {
@@ -232,7 +232,7 @@ namespace backend.Controllers
                     }
                 );
             }
-            
+
             // Verificar si la venta está cerrada
             var atencion = await _context.Atencion.FindAsync(pago.AtencionId);
             if (atencion != null && atencion.CierreDiarioId != null)
@@ -547,7 +547,7 @@ namespace backend.Controllers
 
         // GET: api/pago/facturacion-mes
         [HttpGet("facturacion-mes")]
-        public IActionResult GetFacturacionPorMes(int anio, int mes)
+        public IActionResult GetFacturacionPorMes(int anio, int mes, int? usuarioId = null)
         {
             try
             {
@@ -562,62 +562,88 @@ namespace backend.Controllers
                 var fechaInicio = new DateTime(anio, mes, 1);
                 var fechaFin = fechaInicio.AddMonths(1).AddDays(-1);
 
-                // Obtenemos los pagos del mes (fecha entre inicio y fin)
-                var pagosDelMes = _context
-                    .Pagos.Include(p => p.Atencion)
-                    .Where(p => p.Fecha.Date >= fechaInicio.Date && p.Fecha.Date <= fechaFin.Date)
-                    .ToList();
+                // 1. Obtener las atenciones del mes, filtrando por barbero si se especifica
+                var atencionesQuery = _context.Atencion.Where(a =>
+                    a.Fecha.Date >= fechaInicio.Date && a.Fecha.Date <= fechaFin.Date
+                );
 
-                // Si no hay pagos, devolvemos respuesta adecuada
-                if (!pagosDelMes.Any())
+                if (usuarioId.HasValue)
+                {
+                    atencionesQuery = atencionesQuery.Where(a => a.BarberoId == usuarioId.Value);
+                }
+
+                var atencionIds = atencionesQuery.Select(a => a.Id).ToList();
+
+                // Si no hay atenciones, no hay nada que facturar
+                if (!atencionIds.Any())
                 {
                     return Ok(
                         new
                         {
                             status = 200,
-                            message = "No se registraron pagos en el mes indicado.",
-                            facturacion = new { },
+                            message = "No se encontraron atenciones en el período especificado.",
+                            facturacionTotal = 0,
+                            totalAtenciones = 0,
+                            servicios = new { total = 0 },
+                            productos = new { total = 0 },
+                            metodoPago = new List<object>(),
+                            conclusion = new { },
+                            barbero = usuarioId.HasValue ? new { ganancia = 0m } : null,
                         }
                     );
                 }
 
-                // Agrupamos los pagos por método de pago y sumamos los montos
-                var porMetodo = pagosDelMes
-                    .GroupBy(p => p.MetodoPago)
-                    .Select(g => new { metodo = g.Key.ToString(), total = g.Sum(p => p.Monto) })
+                // 2. Obtener los pagos asociados a esas atenciones
+                var pagosDelMes = _context
+                    .Pagos.Where(p => atencionIds.Contains(p.AtencionId))
                     .ToList();
 
-                // Calculamos el total de todos los pagos del mes
-                var facturacionTotal = pagosDelMes.Sum(p => p.Monto);
-
-                // Obtenemos los detalles de atención para calcular productos y servicios
-                var atencionIds = pagosDelMes.Select(p => p.AtencionId).Distinct().ToList();
-                var totalAtenciones = atencionIds.Count; // 👈 Nuevo dato agregado
-
+                // 3. Obtener los detalles de esas atenciones
                 var detalles = _context
                     .DetalleAtencion.Include(d => d.ProductoServicio)
                     .Where(d => atencionIds.Contains(d.AtencionId))
                     .ToList();
 
-                // Calculamos el total de servicios (productos no almacenables)
-                var servicios = detalles
+                // --- Cálculos ---
+
+                // Total de atenciones
+                var totalAtenciones = atencionIds.Count;
+
+                // Agrupar pagos por método
+                var porMetodo = pagosDelMes
+                    .GroupBy(p => p.MetodoPago)
+                    .Select(g => new { metodo = g.Key.ToString(), total = g.Sum(p => p.Monto) })
+                    .ToList();
+
+                // Total de servicios (cortes) del usuario o global
+                var totalServicios = detalles
                     .Where(d =>
-                        d.ProductoServicio != null
-                        && d.ProductoServicio.EsAlmacenable.HasValue
-                        && !d.ProductoServicio.EsAlmacenable.Value
+                        d.ProductoServicio != null && d.ProductoServicio.EsAlmacenable == false
                     )
                     .Sum(d => d.Cantidad * d.PrecioUnitario);
 
-                // Calculamos el total de productos (productos almacenables)
-                var productos = detalles
+                // Total de productos (ventas)
+                var totalProductos = detalles
                     .Where(d =>
-                        d.ProductoServicio != null
-                        && d.ProductoServicio.EsAlmacenable.HasValue
-                        && d.ProductoServicio.EsAlmacenable.Value
+                        d.ProductoServicio != null && d.ProductoServicio.EsAlmacenable == true
                     )
                     .Sum(d => d.Cantidad * d.PrecioUnitario);
 
-                // Devolvemos los resultados, agregando la conclusión final
+                // Para barbero, ganancia = 50% servicios hechos por él
+                decimal facturacionFinal;
+                decimal gananciaBarbero = 0m;
+
+                if (usuarioId.HasValue)
+                {
+                    gananciaBarbero = totalServicios * 0.5m;
+                    facturacionFinal = gananciaBarbero;
+                }
+                else
+                {
+                    facturacionFinal = pagosDelMes.Sum(p => p.Monto);
+                }
+
+                // Devolvemos los resultados
                 return Ok(
                     new
                     {
@@ -625,23 +651,23 @@ namespace backend.Controllers
                         message = $"Facturación del mes {mes}/{anio} obtenida correctamente.",
                         mes = mes,
                         anio = anio,
-                        facturacionTotal = facturacionTotal,
-                        totalAtenciones = totalAtenciones, // 👈 Nuevo campo en la respuesta
-                        servicios = new { total = servicios },
-                        productos = new { total = productos },
+                        facturacionTotal = facturacionFinal,
+                        totalAtenciones = totalAtenciones,
+                        servicios = new { total = totalServicios },
+                        productos = new { total = totalProductos },
                         metodoPago = porMetodo,
                         conclusion = new
                         {
-                            totalEnCortes = servicios,
-                            totalEnVentas = productos,
-                            recaudacionDelMes = facturacionTotal,
+                            totalEnCortes = totalServicios,
+                            totalEnVentas = totalProductos,
+                            recaudacionDelMes = pagosDelMes.Sum(p => p.Monto),
                         },
+                        barbero = usuarioId.HasValue ? new { ganancia = gananciaBarbero } : null,
                     }
                 );
             }
             catch (Exception ex)
             {
-                // Si ocurre un error, devolvemos el error en el servidor
                 return StatusCode(
                     500,
                     new

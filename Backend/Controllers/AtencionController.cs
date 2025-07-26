@@ -100,7 +100,7 @@ namespace backend.Controllers
                         atencionId = atencion.Id,
                         clienteId = atencion.ClienteId,
                         clienteNombre = atencion.Cliente?.Nombre,
-                        fechaAtencion = atencion.Fecha,
+                        fechaAtencion = atencion.Fecha.ToUniversalTime().ToString("o"),
                         detalles = atencion.DetalleAtencion.Select(d => new
                         {
                             productoServicioId = d.ProductoServicioId,
@@ -257,7 +257,7 @@ namespace backend.Controllers
             {
                 ClienteId = dto.ClienteId,
                 BarberoId = barberoId,
-                Fecha = dto.Fecha ?? DateTime.Now,
+                Fecha = dto.Fecha?.ToUniversalTime() ?? DateTime.UtcNow,
                 DetalleAtencion = dto
                     .Detalles.Select(d => new DetalleAtencion
                     {

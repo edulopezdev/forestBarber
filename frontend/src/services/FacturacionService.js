@@ -33,9 +33,11 @@ export default {
       fecha instanceof Date ? fecha.toISOString().split("T")[0] : fecha;
     return apiClient.get(`/Pago/facturacion?fecha=${formattedDate}`);
   },
-  getFacturacionPorMes(anio, mes) {
-    return apiClient.get(`/Pago/facturacion-mes`, {
-      params: { anio, mes },
-    });
+  getFacturacionPorMes(anio, mes, usuarioId = null) {
+    const params = { anio, mes };
+    if (usuarioId) {
+      params.usuarioId = usuarioId;
+    }
+    return apiClient.get(`/Pago/facturacion-mes`, { params });
   },
 };
