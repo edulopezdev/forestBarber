@@ -130,12 +130,11 @@ export default {
   border-radius: 0.5rem;
   box-shadow: var(--shadow-2);
   padding: 1rem;
-  overflow-y: auto;
   transition: box-shadow 0.3s ease;
 }
 
 .app-logo {
-  height: 60px;
+  height: 50px;
   object-fit: contain;
   margin-bottom: 1.5rem;
   display: block;

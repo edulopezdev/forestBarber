@@ -236,57 +236,134 @@ namespace backend.Controllers
         {
             _logger.LogInformation("Actualizando detalles de venta con ID: {Id}", id);
 
-            // Verificar si la atención existe
-            var atencion = await _context
-                .Atencion.Include(a => a.DetalleAtencion)
-                .FirstOrDefaultAsync(a => a.Id == id);
-
-            if (atencion == null)
-            {
-                return NotFound(
-                    new
-                    {
-                        status = 404,
-                        error = "Not Found",
-                        message = "La venta no existe.",
-                    }
-                );
-            }
-
-            // Verificar si la venta está cerrada (asociada a un cierre de caja)
-            if (atencion.CierreDiarioId != null)
-            {
-                return BadRequest(
-                    new
-                    {
-                        status = 400,
-                        error = "Bad Request",
-                        message = "No se puede modificar una venta que ya está cerrada.",
-                    }
-                );
-            }
-
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Eliminar los detalles actuales
-                _context.DetalleAtencion.RemoveRange(atencion.DetalleAtencion);
+                var atencion = await _context
+                    .Atencion.Include(a => a.DetalleAtencion)
+                    .ThenInclude(d => d.ProductoServicio)
+                    .FirstOrDefaultAsync(a => a.Id == id);
 
-                // Agregar los nuevos detalles
-                foreach (var detalle in dto.Detalles)
+                if (atencion == null)
+                {
+                    return NotFound(
+                        new
+                        {
+                            status = 404,
+                            error = "Not Found",
+                            message = "La venta no existe.",
+                        }
+                    );
+                }
+
+                if (atencion.CierreDiarioId != null)
+                {
+                    return BadRequest(
+                        new
+                        {
+                            status = 400,
+                            error = "Bad Request",
+                            message = "No se puede modificar una venta que ya está cerrada.",
+                        }
+                    );
+                }
+
+                var detallesOriginales = atencion.DetalleAtencion.ToDictionary(d =>
+                    d.ProductoServicioId
+                );
+                var detallesNuevos = dto
+                    .Detalles.GroupBy(d => d.ProductoServicioId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => new DetalleAtencionDto
+                        {
+                            ProductoServicioId = g.Key,
+                            Cantidad = g.Sum(d => d.Cantidad),
+                            PrecioUnitario = g.First().PrecioUnitario, // Asumimos que el precio es el mismo
+                            Observacion = g.First().Observacion,
+                        }
+                    );
+
+                // Devolver stock de productos eliminados o reducidos
+                foreach (var original in detallesOriginales.Values)
+                {
+                    if (original.ProductoServicio.EsAlmacenable == true)
+                    {
+                        int nuevaCantidad = detallesNuevos.ContainsKey(original.ProductoServicioId)
+                            ? detallesNuevos[original.ProductoServicioId].Cantidad
+                            : 0;
+                        if (original.Cantidad > nuevaCantidad)
+                        {
+                            original.ProductoServicio.Cantidad += original.Cantidad - nuevaCantidad;
+                            _context.ProductosServicios.Update(original.ProductoServicio);
+                        }
+                    }
+                }
+
+                // Restar stock de productos nuevos o aumentados y validar
+                foreach (var nuevo in dto.Detalles)
+                {
+                    var producto = await _context.ProductosServicios.FindAsync(
+                        nuevo.ProductoServicioId
+                    );
+                    if (producto == null)
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest(
+                            new
+                            {
+                                status = 400,
+                                error = "Bad Request",
+                                message = $"ProductoServicioId {nuevo.ProductoServicioId} no existe.",
+                            }
+                        );
+                    }
+
+                    if (producto.EsAlmacenable == true)
+                    {
+                        int cantidadOriginal = detallesOriginales.ContainsKey(
+                            nuevo.ProductoServicioId
+                        )
+                            ? detallesOriginales[nuevo.ProductoServicioId].Cantidad
+                            : 0;
+                        if (nuevo.Cantidad > cantidadOriginal)
+                        {
+                            int cantidadARestar = nuevo.Cantidad - cantidadOriginal;
+                            if (producto.Cantidad < cantidadARestar)
+                            {
+                                await transaction.RollbackAsync();
+                                return new BadRequestObjectResult(
+                                    new
+                                    {
+                                        status = 400,
+                                        error = "Bad Request",
+                                        message = $"No hay stock suficiente para el producto {producto.Nombre}. Stock disponible: {producto.Cantidad}.",
+                                    }
+                                );
+                            }
+                            producto.Cantidad -= cantidadARestar;
+                            _context.ProductosServicios.Update(producto);
+                        }
+                    }
+                }
+
+                // Actualizar detalles
+                _context.DetalleAtencion.RemoveRange(atencion.DetalleAtencion);
+                foreach (var detalleAgrupado in detallesNuevos.Values)
                 {
                     var nuevoDetalle = new DetalleAtencion
                     {
                         AtencionId = id,
-                        ProductoServicioId = detalle.ProductoServicioId,
-                        Cantidad = detalle.Cantidad,
-                        PrecioUnitario = detalle.PrecioUnitario,
-                        Observacion = detalle.Observacion,
+                        ProductoServicioId = detalleAgrupado.ProductoServicioId,
+                        Cantidad = detalleAgrupado.Cantidad,
+                        PrecioUnitario = detalleAgrupado.PrecioUnitario,
+                        Observacion = detalleAgrupado.Observacion,
                     };
-
                     _context.DetalleAtencion.Add(nuevoDetalle);
                 }
 
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 return Ok(
                     new { status = 200, message = "Detalles de venta actualizados correctamente." }
@@ -294,6 +371,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 _logger.LogError(ex, "Error al actualizar detalles de venta");
                 return StatusCode(
                     500,

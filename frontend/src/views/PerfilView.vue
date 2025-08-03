@@ -198,6 +198,14 @@ export default {
 </script>
 
 <style scoped>
+.clientes-container {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  color: #e0e0e0;
+}
+
 .encabezado-acciones {
   display: flex;
   justify-content: space-between;
@@ -216,7 +224,7 @@ export default {
 
 .tabla-detalle-container {
   background-color: #1a1a1a;
-  padding: 1.5rem;
+  padding: 0.5rem;
   border-radius: 10px;
   box-shadow: 0 3px 8px rgb(0 0 0 / 0.3);
   flex: 1;
@@ -256,7 +264,7 @@ export default {
   align-items: center;
   flex: 1;
   min-width: 200px;
-  padding: 2rem;
+  padding: 1rem;
   background-color: #1f1f1f;
   border-radius: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -292,8 +300,8 @@ export default {
 }
 
 .avatar {
-  width: 240px;
-  height: 240px;
+  width: 180px;
+  height: 180px;
   border-radius: 70%;
   object-fit: cover;
   border: 5px solid #4a90e2;

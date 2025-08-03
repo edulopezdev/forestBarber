@@ -1,5 +1,5 @@
 <template>
-  <div class="productos-container">
+  <div class="clientes-container">
     <Toast />
     <Card>
       <template #title>
@@ -589,7 +589,6 @@ export default {
 }
 
 :deep(.p-datatable-thead > tr > th:nth-child(5)) /* Estado */ {
-  display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }

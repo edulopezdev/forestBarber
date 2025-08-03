@@ -1,155 +1,157 @@
 <template>
-  <Toast />
+  <div class="clientes-container">
+    <Toast />
 
-  <NewFeatureNotification
-    featureKey="nueva-funcion-dashboard-v1"
-    title="¡Nuevo módulo: Caja!"
-    :duration="10000"
-    top="30%"
-    left="50%"
-  />
+    <NewFeatureNotification
+      featureKey="nueva-funcion-dashboard-v1"
+      title="¡Nuevo módulo: Caja!"
+      :duration="10000"
+      top="30%"
+      left="50%"
+    />
 
-  <!-- Título dinámico -->
-  <h2 class="dashboard-title">
-    <span v-if="isBarber">
-      ¡Hola {{ user?.nombre || "Barbero" }}! Aquí están tus métricas de
-      {{ nombreMes(mes) }} {{ anio }}
-    </span>
-    <span v-else> Facturación de {{ nombreMes(mes) }} {{ anio }} </span>
-  </h2>
+    <!-- Título dinámico -->
+    <h2 class="dashboard-title">
+      <span v-if="isBarber">
+        ¡Hola {{ user?.nombre || "Barbero" }}! Aquí están tus métricas de
+        {{ nombreMes(mes) }} {{ anio }}
+      </span>
+      <span v-else> Facturación de {{ nombreMes(mes) }} {{ anio }} </span>
+    </h2>
 
-  <!-- Vista para Barberos -->
-  <div v-if="isBarber" class="barber-metrics">
-    <Card class="kpi-card total-card">
-      <template #title>
-        <div class="card-header">
-          <span>Ganancias</span>
-          <small class="motivacion">¡A romperla este mes!</small>
-        </div>
-      </template>
-      <template #content>
-        <p class="kpi-valor">
-          ${{ facturacion?.facturacionTotal?.toLocaleString() || "0" }}
-        </p>
-      </template>
-    </Card>
-
-    <Card class="kpi-card atendencias-card">
-      <template #title>
-        <div class="card-header">
-          <span>Total de Atenciones</span>
-          <small class="motivacion">Cada corte cuenta ✂️</small>
-        </div>
-      </template>
-      <template #content>
-        <p class="kpi-valor">
-          {{ facturacion?.totalAtenciones?.toLocaleString() || "0" }}
-        </p>
-      </template>
-    </Card>
-
-    <Card class="kpi-card objetivo-card" v-if="objetivoMensual">
-      <template #title>
-        <div class="card-header">
-          <span>Objetivo Mensual</span>
-          <small class="motivacion">¡Vamos por más! 💪</small>
-        </div>
-      </template>
-      <template #content>
-        <p class="kpi-valor objetivo-valor">
-          ${{ objetivoMensual.toLocaleString() }}
-        </p>
-        <div class="progress-bar">
-          <div
-            class="progress-fill"
-            :style="{ width: progresoObjetivo + '%' }"
-            :class="{ complete: progresoObjetivo >= 100 }"
-          ></div>
-        </div>
-        <small class="progreso-text">
-          {{ progresoObjetivo.toFixed(1) }}% del objetivo alcanzado
-        </small>
-      </template>
-    </Card>
-  </div>
-
-  <!-- Gráfico semanal, ancho completo bajo las 3 cards -->
-  <div v-if="isBarber" class="barber-charts">
-    <Card class="chart-card full-width-card">
-      <template #title> Ganancias Semanales </template>
-      <template #content>
-        <Chart
-          type="bar"
-          :data="barberoChartData"
-          :options="barOptions"
-          class="barber-weekly-chart"
-          style="height: 250px; width: 100%"
-        />
-      </template>
-    </Card>
-  </div>
-
-  <!-- Vista para Administradores y otros roles -->
-  <div v-else>
-    <div class="cards-grid">
+    <!-- Vista para Barberos -->
+    <div v-if="isBarber" class="barber-metrics">
       <Card class="kpi-card total-card">
-        <template #title>Total</template>
+        <template #title>
+          <div class="card-header">
+            <span>Ganancias</span>
+            <small class="motivacion">¡A romperla este mes!</small>
+          </div>
+        </template>
         <template #content>
           <p class="kpi-valor">
             ${{ facturacion?.facturacionTotal?.toLocaleString() || "0" }}
           </p>
         </template>
       </Card>
-      <Card class="kpi-card servicio-card">
-        <template #title>Servicios</template>
-        <template #content>
-          <p class="kpi-valor">
-            ${{ facturacion?.servicios.total?.toLocaleString() || "0" }}
-          </p>
+
+      <Card class="kpi-card atendencias-card">
+        <template #title>
+          <div class="card-header">
+            <span>Total de Atenciones</span>
+            <small class="motivacion">Cada corte cuenta ✂️</small>
+          </div>
         </template>
-      </Card>
-      <Card class="kpi-card producto-card">
-        <template #title>Productos</template>
-        <template #content>
-          <p class="kpi-valor">
-            ${{ facturacion?.productos.total?.toLocaleString() || "0" }}
-          </p>
-        </template>
-      </Card>
-      <Card class="kpi-card">
-        <template #title>Total de Atenciones</template>
         <template #content>
           <p class="kpi-valor">
             {{ facturacion?.totalAtenciones?.toLocaleString() || "0" }}
           </p>
         </template>
       </Card>
-    </div>
-    <div class="admin-charts-row">
-      <Card class="chart-card half-width-card">
-        <template #title>Métodos de Pago</template>
+
+      <Card class="kpi-card objetivo-card" v-if="objetivoMensual">
+        <template #title>
+          <div class="card-header">
+            <span>Objetivo Mensual</span>
+            <small class="motivacion">¡Vamos por más! 💪</small>
+          </div>
+        </template>
         <template #content>
-          <Chart
-            type="pie"
-            :data="chartData"
-            :options="chartOptions"
-            class="admin-chart"
-            style="height: 350px; width: 100%"
-          />
+          <p class="kpi-valor objetivo-valor">
+            ${{ objetivoMensual.toLocaleString() }}
+          </p>
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              :style="{ width: progresoObjetivo + '%' }"
+              :class="{ complete: progresoObjetivo >= 100 }"
+            ></div>
+          </div>
+          <small class="progreso-text">
+            {{ progresoObjetivo.toFixed(1) }}% del objetivo alcanzado
+          </small>
         </template>
       </Card>
-      <Card class="chart-card half-width-card">
-        <template #title>Cortes vs Ventas</template>
+    </div>
+
+    <!-- Gráfico semanal, ancho completo bajo las 3 cards -->
+    <div v-if="isBarber" class="barber-charts">
+      <Card class="chart-card full-width-card">
+        <template #title> Ganancias Semanales </template>
         <template #content>
           <Chart
             type="bar"
-            :data="detalleChart"
+            :data="barberoChartData"
             :options="barOptions"
-            class="admin-chart"
-            style="height: 350px; width: 100%"
+            class="barber-weekly-chart"
+            style="height: 250px; width: 100%"
           />
         </template>
       </Card>
+    </div>
+
+    <!-- Vista para Administradores y otros roles -->
+    <div v-else>
+      <div class="cards-grid">
+        <Card class="kpi-card total-card">
+          <template #title>Total</template>
+          <template #content>
+            <p class="kpi-valor">
+              ${{ facturacion?.facturacionTotal?.toLocaleString() || "0" }}
+            </p>
+          </template>
+        </Card>
+        <Card class="kpi-card servicio-card">
+          <template #title>Servicios</template>
+          <template #content>
+            <p class="kpi-valor">
+              ${{ facturacion?.servicios.total?.toLocaleString() || "0" }}
+            </p>
+          </template>
+        </Card>
+        <Card class="kpi-card producto-card">
+          <template #title>Productos</template>
+          <template #content>
+            <p class="kpi-valor">
+              ${{ facturacion?.productos.total?.toLocaleString() || "0" }}
+            </p>
+          </template>
+        </Card>
+        <Card class="kpi-card">
+          <template #title>Total de Atenciones</template>
+          <template #content>
+            <p class="kpi-valor">
+              {{ facturacion?.totalAtenciones?.toLocaleString() || "0" }}
+            </p>
+          </template>
+        </Card>
+      </div>
+      <div class="admin-charts-row">
+        <Card class="chart-card half-width-card">
+          <template #title>Métodos de Pago</template>
+          <template #content>
+            <Chart
+              type="pie"
+              :data="chartData"
+              :options="chartOptions"
+              class="admin-chart"
+              style="height: 350px; width: 100%"
+            />
+          </template>
+        </Card>
+        <Card class="chart-card half-width-card">
+          <template #title>Cortes vs Ventas</template>
+          <template #content>
+            <Chart
+              type="bar"
+              :data="detalleChart"
+              :options="barOptions"
+              class="admin-chart"
+              style="height: 350px; width: 100%"
+            />
+          </template>
+        </Card>
+      </div>
     </div>
   </div>
 </template>
@@ -329,6 +331,14 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.clientes-container {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  color: #e0e0e0;
+}
+
 .dashboard-title {
   font-size: 2rem;
   font-weight: 700;

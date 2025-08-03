@@ -33,18 +33,16 @@ export default {
 <template>
   <Toast />
 
-  <div id="app">
-    <AppTopbar class="topbar" v-if="isAuthenticated" />
+  <AppTopbar class="topbar" v-if="isAuthenticated" />
 
-    <div class="layout">
-      <!-- Sidebar fijo a la izquierda -->
-      <AppSidebar class="sidebar" :role="userRole" v-if="isAuthenticated" />
+  <div class="layout">
+    <!-- Sidebar fijo a la izquierda -->
+    <AppSidebar class="sidebar" :role="userRole" v-if="isAuthenticated" />
 
-      <!-- Contenido principal a la derecha -->
-      <main class="main-content">
-        <router-view class="debug-border" />
-      </main>
-    </div>
+    <!-- Contenido principal a la derecha -->
+    <main class="main-content">
+      <router-view class="debug-border" />
+    </main>
   </div>
 </template>
 
@@ -55,14 +53,7 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
-}
-
-#app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh; /* Ocupa todo el alto de la pantalla */
-  width: 100vw; /* Ocupa todo el ancho de la pantalla */
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* Topbar fijo arriba */
@@ -72,10 +63,11 @@ body {
   flex-shrink: 0;
 }
 
-/* Layout horizontal: sidebar + contenido */
 .layout {
   display: flex;
-  flex: 1;
+  height: calc(100vh - 60px - 0px);
+  margin-top: 28px;
+  width: calc(100% - -28px); /* Evita que se pase del viewport */
   overflow: hidden;
 }
 
@@ -92,6 +84,30 @@ body {
   overflow-y: auto;
   padding: 1.5rem;
   margin-left: 230px; /* Respeta el espacio del sidebar */
-  margin-right: 2rem;
+  padding-right: 1.5rem;
+  background-color: transparent;
+
+  /* Estilo del scrollbar para Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Scrollbar estilizado y discreto para WebKit (Chrome, Edge, Safari) */
+.main-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.35);
 }
 </style>

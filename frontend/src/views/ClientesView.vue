@@ -43,11 +43,12 @@
             <template #header>
               <span class="titulo-columna">Nombre</span>
             </template>
-            <template #filter="{ filterModel, filterCallback }">
+<template #filter="{ filterModel, filterCallback }">
               <InputText
                 v-model="filterModel.value"
                 @input="filterCallback()"
                 placeholder="Buscar por nombre"
+                style="width: 150px;"
               />
             </template>
           </Column>
@@ -58,6 +59,7 @@
                 v-model="filterModel.value"
                 @input="filterCallback()"
                 placeholder="Buscar por email"
+                style="width: 150px;"
               />
             </template>
           </Column>
@@ -68,6 +70,7 @@
                 v-model="filterModel.value"
                 @input="filterCallback()"
                 placeholder="Buscar por teléfono"
+                style="width: 150px;"
               />
             </template>
           </Column>
@@ -220,7 +223,7 @@ export default {
       clientes: [],
       totalClients: 0,
       currentPage: 1,
-      pageSize: 10,
+      pageSize: 6,
       first: 0,
       sortField: null,
       sortOrder: null,
@@ -448,7 +451,7 @@ export default {
     },
 
     // Carga de clientes con paginación, filtros y ordenamiento
-    obtenerClientes(page = 1, pageSize = 10) {
+    obtenerClientes(page = 1, pageSize = this.pageSize) {
       this.loading = true;
 
       const filtrosAplicados = {};
@@ -680,6 +683,7 @@ export default {
   font-size: 0.85rem !important;
   margin: 0 !important;
   border-radius: 4px !important;
+  width: 150px !important;
 }
 
 :deep(.p-column-filter .p-dropdown) {
@@ -840,10 +844,14 @@ export default {
   color: #28a745;
 }
 .total-clientes {
-  margin-top: 1.9rem;
+  margin-top: 1.5rem;
   font-size: 1rem;
   font-weight: 500;
   text-align: left;
   color: #aeaeae;
+}
+
+:deep(.p-card-content) {
+  padding-bottom: 0.2rem !important;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="ventas-container">
+  <div class="clientes-container">
     <Toast />
     <Card>
       <template #title>
@@ -110,8 +110,8 @@
                 class="estado-etiqueta"
               />
             </template>
-            <template #filter="{ filterModel, filterCallback }">
-              <div style="display: flex; justify-content: center">
+<template #filter="{ filterModel, filterCallback }">
+              <div style="display: flex; justify-content: center; width: 100%;">
                 <Dropdown
                   v-model="filters.estado.value"
                   @change="onEstadoChange"
@@ -124,7 +124,7 @@
                   optionValue="value"
                   placeholder="Seleccionar estado"
                   showClear
-                  style="width: 150px"
+                  style="width: 150px; min-width: 150px;"
                 />
               </div>
             </template>
@@ -555,7 +555,7 @@ export default {
       ventas: [],
       totalVentas: 0,
       currentPage: 1,
-      pageSize: 10,
+      pageSize: 6,
       first: 0,
       sortField: "fecha",
       sortOrder: -1, // -1 para descendente, 1 para ascendente
@@ -651,7 +651,7 @@ export default {
       // Al cambiar el estado, dispara el filtro y GET
       this.obtenerVentas(1, this.pageSize);
     },
-    async obtenerVentas(page = 1, pageSize = 10) {
+    async obtenerVentas(page = 1, pageSize = this.pageSize) {
       this.loading = true;
 
       try {
@@ -1050,10 +1050,11 @@ export default {
           })
           .catch((err) => {
             console.error("Error al guardar venta:", err);
+            const errorMessage = err.response?.data?.message || "No se pudo registrar la venta.";
             Swal.fire({
-              icon: "error",
-              title: "Error",
-              text: "No se pudo registrar la venta.",
+              icon: "warning",
+              title: "Atención",
+              text: errorMessage,
               background: "#18181b",
               color: "#fff",
               customClass: {
@@ -1856,7 +1857,7 @@ export default {
 /* ===========================
    CONTENEDOR GENERAL
 =========================== */
-.ventas-container {
+.clientes-container {
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -1956,7 +1957,6 @@ export default {
 }
 
 :deep(.p-datatable-thead > tr > th:nth-child(5)) /* Estado */ {
-  display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
@@ -1982,6 +1982,7 @@ export default {
   font-size: 0.85rem !important;
   margin: 0 !important;
   border-radius: 4px !important;
+  width: 200px !important; /* Increased width */
 }
 
 :deep(.p-column-filter .p-dropdown) {
@@ -2179,11 +2180,15 @@ export default {
 }
 
 .total-ventas {
-  margin-top: 1.9rem;
+  margin-top: 1.5rem;
   font-size: 1rem;
   font-weight: 500;
   text-align: left;
   color: #aeaeae;
+}
+
+:deep(.p-card-content) {
+  padding-bottom: 0.2rem !important;
 }
 .icono-check {
   display: flex;
