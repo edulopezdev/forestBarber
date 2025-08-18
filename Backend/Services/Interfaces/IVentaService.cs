@@ -19,5 +19,6 @@ namespace backend.Services.Interfaces
             decimal? montoMax,
             string? estadoPago // nuevo parámetro
         );
+        Task<int?> GetBarberoId(System.Security.Claims.ClaimsPrincipal user);
     }
 }

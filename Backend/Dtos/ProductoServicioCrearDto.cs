@@ -12,7 +12,7 @@ namespace backend.Dtos
         [Required]
         public decimal Precio { get; set; }
 
-        public bool? EsAlmacenable { get; set; }
+    public bool EsAlmacenable { get; set; }
 
         public int? Cantidad { get; set; }
 

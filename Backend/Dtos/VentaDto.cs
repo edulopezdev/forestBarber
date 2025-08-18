@@ -25,15 +25,7 @@ namespace backend.Dtos
             : "Completo";
     }
 
-    public class DetalleVentaDto
-    {
-        public int ProductoServicioId { get; set; }
-        public string NombreProducto { get; set; } = string.Empty;
-        public int Cantidad { get; set; }
-        public decimal PrecioUnitario { get; set; }
-        public decimal Subtotal => Cantidad * PrecioUnitario;
-        public string? Observacion { get; set; }
-    }
+    // ...existing code...
 
     public class PagoInfoDto
     {

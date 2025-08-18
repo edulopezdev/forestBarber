@@ -11,12 +11,15 @@
       <AutoComplete
         v-model="formulario.cliente"
         :suggestions="clientesFiltrados"
-        field="nombre"
         @complete="buscarClientes"
         placeholder="Selecciona un cliente"
         :force-selection="true"
         class="auto-complete-fullwidth"
-      />
+      >
+        <template #option="slotProps">
+          <span v-html="resaltarCoincidenciaDinamica(slotProps.option.nombre)"></span>
+        </template>
+      </AutoComplete>
       <div v-if="errores.cliente" class="error-msg">
         <i class="pi pi-exclamation-triangle"></i> {{ errores.cliente }}
       </div>
@@ -155,7 +158,14 @@
         icon="pi pi-check"
         @click="onGuardar"
         :disabled="guardando"
-      />
+      >
+        <template #icon>
+          <span v-if="guardando" class="spinner-guardar">
+            <i class="pi pi-spin pi-spinner"></i>
+          </span>
+          <i v-else class="pi pi-check"></i>
+        </template>
+      </Button>
       <button class="btn-cerrar" @click="$emit('cancelar')" aria-label="Cerrar">
         <i class="pi pi-times"></i>
       </button>
@@ -209,6 +219,7 @@ export default {
         index: null,
         texto: "",
       },
+      busquedaCliente: "", // Nueva propiedad para almacenar la búsqueda del cliente
     };
   },
   computed: {
@@ -264,21 +275,27 @@ export default {
 
   methods: {
     async buscarClientes(event) {
-      const query = event.query || "";
+      this.busquedaCliente = event.query || ""; // Guarda el texto buscado
+      const query = (event.query || "").trim().toLowerCase();
       if (!query || query.length < 1) {
         this.clientesFiltrados = [];
         return;
       }
       try {
-        const response = await UsuarioService.getClientes(1, 10, {
+        const response = await UsuarioService.getClientes(1, 20, {
           nombre: query,
           activo: true,
         });
+        // Filtrar en frontend: nombre completo (nombre + apellido) que empiece alguna palabra con el query
         this.clientesFiltrados =
-          response.data.clientes.map((c) => ({
+          (response.data.clientes || []).filter((c) => {
+            const nombreCompleto = ((c.nombre || "") + " " + (c.apellido || "")).trim().toLowerCase();
+            // Coincidencia al inicio de cualquier palabra del nombre completo
+            return nombreCompleto.split(" ").some((w) => w.startsWith(query));
+          }).map((c) => ({
             id: c.id,
-            nombre: c.nombre,
-          })) || [];
+            nombre: ((c.nombre || "") + " " + (c.apellido || "")).trim(),
+          }));
       } catch (error) {
         console.error("Error al buscar clientes:", error);
         this.clientesFiltrados = [];
@@ -364,6 +381,8 @@ export default {
     onGuardar() {
       if (!this.validarFormulario()) return;
 
+      this.guardando = true; // Deshabilitar botón y mostrar feedback
+
       const datos = {
         cliente: this.formulario.cliente,
         detalles: this.carrito,
@@ -371,7 +390,14 @@ export default {
         id: this.ventaId,
       };
       console.log("Datos a enviar al backend:", JSON.stringify(datos, null, 2));
+      // Emitir evento y esperar respuesta del padre para re-habilitar el botón
       this.$emit("guardar", datos);
+
+      // El padre debe emitir un evento para re-habilitar el botón (ver VentasView.vue)
+      // Como fallback, re-habilitar después de 10s si no hay respuesta
+      setTimeout(() => {
+        this.guardando = false;
+      }, 10000);
     },
 
     limpiarFormulario() {
@@ -399,6 +425,13 @@ export default {
         this.carrito[this.notaModal.index].observacion = this.notaModal.texto;
       }
       this.cerrarNotaModal();
+    },
+    resaltarCoincidenciaDinamica(nombreCompleto) {
+  const query = (this.busquedaCliente || "").trim();
+  if (!query) return nombreCompleto;
+  // Resalta todas las coincidencias, insensible a mayúsculas/minúsculas
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return nombreCompleto.replace(regex, '<span class="highlight">$1</span>');
     },
   },
 };
@@ -608,5 +641,20 @@ label {
   outline: none;
   box-shadow: none;
   background-color: transparent !important;
+}
+
+.spinner-guardar {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.3rem;
+  font-size: 1.1em;
+}
+
+.highlight {
+  background: #ffe066;
+  color: #222;
+  font-weight: bold;
+  border-radius: 3px;
+  padding: 0 2px;
 }
 </style>

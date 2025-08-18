@@ -8,7 +8,9 @@
     "@fullcalendar/interaction": "^6.1.17",
     "@fullcalendar/timegrid": "^6.1.17",
     "@fullcalendar/vue3": "^6.1.17",
+    "lottie-web": "^5.13.0",
     "primeicons": "^7.0.0",
-    "primevue": "^3.44.0"
+    "primevue": "^3.44.0",
+    "vue3-lottie": "^3.3.1"
   }
 }

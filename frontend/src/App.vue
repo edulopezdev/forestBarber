@@ -2,16 +2,19 @@
 import AppSidebar from "./components/AppSidebar.vue";
 import AppTopbar from "./components/AppTopbar.vue";
 import authService from "./services/auth.service";
+import LoadingSpinner from "./components/LoadingSpinner.vue";
 
 export default {
   components: {
     AppSidebar,
     AppTopbar,
+    LoadingSpinner,
   },
   data() {
     return {
       isAuthenticated: false,
       userRole: null,
+      isLoading: true, // loading global
     };
   },
   watch: {
@@ -26,13 +29,15 @@ export default {
   mounted() {
     this.isAuthenticated = authService.isAuthenticated();
     this.userRole = authService.getUserRole();
+    // Simular carga inicial
+  setTimeout(() => { this.isLoading = false }, 800);
   },
 };
 </script>
 
 <template>
   <Toast />
-
+  <LoadingSpinner :visible="isLoading" text="Cargando..." />
   <AppTopbar class="topbar" v-if="isAuthenticated" />
 
   <div class="layout">

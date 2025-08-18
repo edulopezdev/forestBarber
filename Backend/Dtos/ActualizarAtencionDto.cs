@@ -20,5 +20,8 @@ namespace backend.Dtos
         [Required]
         public List<DetalleAtencionDto> DetalleAtencion { get; set; } =
             new List<DetalleAtencionDto>(); // Se inicializa para evitar null
+
+        public List<DetalleAtencionDto> DetallesEliminados { get; set; } =
+            new List<DetalleAtencionDto>();
     }
 }

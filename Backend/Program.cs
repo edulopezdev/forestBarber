@@ -158,7 +158,15 @@ builder.Services.AddAuthorization(); // esto lo q hace es configurar autorizaci√
 // Registrar servicios de negocio
 builder.Services.AddScoped<IVentaService, VentaService>();
 builder.Services.AddScoped<ICierreDiarioService, CierreDiarioService>();
-builder.Services.AddScoped<IAtencionService, AtencionService>();
+builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<IAtencionService>(provider =>
+{
+    var context = provider.GetRequiredService<ApplicationDbContext>();
+    var logger = provider.GetRequiredService<ILogger<AtencionService>>();
+    var stockService = provider.GetRequiredService<IStockService>();
+    return new AtencionService(context, logger, stockService);
+});
+builder.Services.AddSingleton(builder.Configuration);
 
 // Registrar servicios de acceso a datos
 var app = builder.Build();

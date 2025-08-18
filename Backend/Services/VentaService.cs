@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using backend.Data;
 using backend.Dtos;
@@ -38,7 +39,8 @@ namespace backend.Services
         {
             // Base query con includes necesarios
             var baseQuery = _context
-                .Atencion.Include(a => a.Cliente)
+                .Atencion
+                .Include(a => a.Cliente)
                 .Include(a => a.DetalleAtencion)
                 .ThenInclude(d => d.ProductoServicio)
                 .Where(a => a.DetalleAtencion.Any());
@@ -85,28 +87,34 @@ namespace backend.Services
 
             // Traemos la lista con Pagos y Detalles en memoria para luego proyectar
             var lista = await baseQuery
-                .Select(a => new
-                {
-                    Atencion = a,
-                    Pagos = _context.Pagos.Where(p => p.AtencionId == a.Id).ToList(),
-                    Detalles = a
-                        .DetalleAtencion.Select(d => new DetalleVentaDto
-                        {
-                            ProductoServicioId = d.ProductoServicioId,
-                            NombreProducto =
-                                d.ProductoServicio != null
-                                    ? (d.ProductoServicio.Nombre ?? "Sin nombre")
-                                    : "Producto/Servicio borrado",
-                            Cantidad = d.Cantidad,
-                            PrecioUnitario = d.PrecioUnitario,
-                            Observacion = d.Observacion,
-                        })
-                        .ToList(),
-                })
                 .ToListAsync();
 
+            var resultado = lista.Select(a => new
+            {
+                Atencion = a,
+                Pagos = _context.Pagos.Where(p => p.AtencionId == a.Id).ToList(),
+                Detalles = a.DetalleAtencion.Select(d => {
+                    var productoServicio = d.ProductoServicio;
+                    if (productoServicio == null)
+                    {
+                        // Si no está cargado, buscarlo en la base de datos
+                        productoServicio = _context.ProductosServicios.FirstOrDefault(p => p.Id == d.ProductoServicioId);
+                    }
+                    return new backend.Dtos.DetalleVentaDto
+                    {
+                        ProductoServicioId = d.ProductoServicioId,
+                        NombreProducto = productoServicio != null ? (productoServicio.Nombre ?? "Sin nombre") : "Producto/Servicio borrado",
+                        Cantidad = d.Cantidad,
+                        PrecioUnitario = d.PrecioUnitario,
+                        Subtotal = d.Cantidad * d.PrecioUnitario,
+                        Observacion = d.Observacion,
+                        EsAlmacenable = productoServicio != null ? productoServicio.EsAlmacenable : false,
+                    };
+                }).ToList(),
+            }).ToList();
+
             // Proyección a forma final con nombres correctos y cálculo subtotal
-            var query = lista
+            var query = resultado
                 .Select(a => new
                 {
                     atencionId = a.Atencion.Id, // <-- nombre corregido aquí
@@ -116,15 +124,13 @@ namespace backend.Services
                     CierreDiarioId = a.Atencion.CierreDiarioId, // Incluir el ID del cierre diario
                     Detalles = a.Detalles,
                     TotalVenta = a.Detalles.Sum(d => d.Cantidad * d.PrecioUnitario),
-                    Pagos = a
-                        .Pagos.Select(p => new PagoInfoDto
-                        {
-                            PagoId = p.Id,
-                            MetodoPago = p.MetodoPago.ToString(),
-                            Monto = p.Monto,
-                            FechaPago = p.Fecha,
-                        })
-                        .ToList(),
+                    Pagos = a.Pagos.Select(p => new PagoInfoDto
+                    {
+                        PagoId = p.Id,
+                        MetodoPago = p.MetodoPago.ToString(),
+                        Monto = p.Monto,
+                        FechaPago = p.Fecha,
+                    }).ToList(),
                 })
                 .Select(a => new
                 {
@@ -149,7 +155,9 @@ namespace backend.Services
                     a.TotalVenta,
                     a.Pagos,
                     a.MontoPagado,
-                    EstadoPago = a.CierreDiarioId != null ? "Cerrado" : (a.MontoPagado >= a.TotalVenta ? "Completo" : "Pendiente"),
+                    EstadoPago = a.CierreDiarioId != null
+                        ? "Cerrado"
+                        : (a.MontoPagado >= a.TotalVenta ? "Completo" : "Pendiente"),
                     FechaVenta = a.FechaAtencion.Date,
                 })
                 .AsQueryable();
@@ -214,5 +222,22 @@ namespace backend.Services
                 ventas = ventasFinal,
             };
         }
+
+        public Task<int?> GetBarberoId(System.Security.Claims.ClaimsPrincipal user)
+        {
+            var barberoIdStr = user.FindFirstValue(
+                System.Security.Claims.ClaimTypes.NameIdentifier
+            );
+            if (
+                string.IsNullOrEmpty(barberoIdStr) || !int.TryParse(barberoIdStr, out int barberoId)
+            )
+            {
+                return Task.FromResult<int?>(null);
+            }
+
+            return Task.FromResult<int?>(barberoId);
+        }
+
+    // ...existing code...
     }
 }

@@ -10,14 +10,17 @@ namespace backend.Controllers
     public class AtencionController : ControllerBase
     {
         private readonly IAtencionService _atencionService;
+        private readonly IVentaService _ventaService;
         private readonly ILogger<AtencionController> _logger;
 
         public AtencionController(
             IAtencionService atencionService,
+            IVentaService ventaService,
             ILogger<AtencionController> logger
         )
         {
             _atencionService = atencionService;
+            _ventaService = ventaService;
             _logger = logger;
         }
 
@@ -52,10 +55,9 @@ namespace backend.Controllers
                 return BadRequest(ModelState);
             }
 
-            var barberoIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (
-                string.IsNullOrEmpty(barberoIdStr) || !int.TryParse(barberoIdStr, out int barberoId)
-            )
+            var barberoId = await _ventaService.GetBarberoId(User);
+
+            if (barberoId == null)
             {
                 return Unauthorized(
                     new
@@ -67,7 +69,7 @@ namespace backend.Controllers
                 );
             }
 
-            var result = await _atencionService.CrearAtencionAsync(dto, barberoId);
+            var result = await _atencionService.CrearAtencionAsync(dto, barberoId.Value);
             return result;
         }
 

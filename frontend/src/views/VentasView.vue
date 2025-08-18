@@ -110,8 +110,8 @@
                 class="estado-etiqueta"
               />
             </template>
-<template #filter="{ filterModel, filterCallback }">
-              <div style="display: flex; justify-content: center; width: 100%;">
+            <template #filter="{ filterModel, filterCallback }">
+              <div style="display: flex; justify-content: center; width: 100%">
                 <Dropdown
                   v-model="filters.estado.value"
                   @change="onEstadoChange"
@@ -124,14 +124,17 @@
                   optionValue="value"
                   placeholder="Seleccionar estado"
                   showClear
-                  style="width: 150px; min-width: 150px;"
+                  style="width: 150px; min-width: 150px"
                 />
               </div>
             </template>
           </Column>
 
           <!-- Acciones -->
-          <Column header="Acciones" style="min-width: 180px; text-align: center">
+          <Column
+            header="Acciones"
+            style="min-width: 180px; text-align: center"
+          >
             <template #body="slotProps">
               <div class="acciones-botones">
                 <!-- Espacio adicional a la izquierda -->
@@ -236,6 +239,7 @@
       style="width: 700px"
     >
       <VentaForm
+        ref="ventaForm"
         :venta="ventaSeleccionada"
         @guardar="guardarVenta"
         @cancelar="cerrarModal"
@@ -833,6 +837,7 @@ export default {
               cantidad: d.cantidad ?? 1,
               precioUnitario: d.precioUnitario ?? 0.0,
               nombreProducto: d.nombreProducto ?? "Producto sin nombre",
+              esAlmacenable: d.esAlmacenable ?? false, // <-- AGREGAR ESTA LÍNEA
             })),
             total: data.totalVenta ?? 0.0,
           };
@@ -987,6 +992,9 @@ export default {
                 });
                 this.cerrarModal();
                 this.obtenerVentas(this.currentPage, this.pageSize);
+                // Notificar al hijo que termine el guardado
+                if (this.$refs.ventaForm)
+                  this.$refs.ventaForm.guardando = false;
               })
               .catch((err) => {
                 console.error("Error al actualizar venta:", err);
@@ -1000,7 +1008,13 @@ export default {
                     container: "swal-container-class",
                   },
                 });
+                // Notificar al hijo que termine el guardado
+                if (this.$refs.ventaForm)
+                  this.$refs.ventaForm.guardando = false;
               });
+          } else {
+            // Si cancela, re-habilitar el botón guardar
+            if (this.$refs.ventaForm) this.$refs.ventaForm.guardando = false;
           }
         });
       } else {
@@ -1034,23 +1048,28 @@ export default {
 
         VentaService.crearVenta(payload)
           .then(() => {
-            Swal.fire({
-              icon: "success",
-              title: "Venta registrada",
-              background: "#18181b",
-              color: "#fff",
-              timer: 2000,
-              showConfirmButton: false,
-              customClass: {
-                container: "swal-container-class",
-              },
-            });
-            this.cerrarModal();
-            this.obtenerVentas(this.currentPage, this.pageSize);
+            setTimeout(() => {
+              Swal.fire({
+                icon: "success",
+                title: "Venta registrada",
+                background: "#18181b",
+                color: "#fff",
+                timer: 2000,
+                showConfirmButton: false,
+                customClass: {
+                  container: "swal-container-class",
+                },
+              });
+              this.cerrarModal();
+              this.obtenerVentas(this.currentPage, this.pageSize);
+              // Notificar al hijo que termine el guardado
+              if (this.$refs.ventaForm) this.$refs.ventaForm.guardando = false;
+            }, 3000);
           })
           .catch((err) => {
             console.error("Error al guardar venta:", err);
-            const errorMessage = err.response?.data?.message || "No se pudo registrar la venta.";
+            const errorMessage =
+              err.response?.data?.message || "No se pudo registrar la venta.";
             Swal.fire({
               icon: "warning",
               title: "Atención",
@@ -1061,6 +1080,8 @@ export default {
                 container: "swal-container-class",
               },
             });
+            // Notificar al hijo que termine el guardado
+            if (this.$refs.ventaForm) this.$refs.ventaForm.guardando = false;
           });
       }
     },
@@ -1825,14 +1846,27 @@ export default {
         color: "#fff",
       }).then(async (result) => {
         if (result.isConfirmed) {
+          // Mostrar loader mientras se elimina
+          Swal.fire({
+            title: "Eliminando venta...",
+            text: "Por favor espere",
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+              Swal.showLoading();
+            },
+            background: "#18181b",
+            color: "#fff",
+          });
           try {
             await VentaService.eliminarVenta(venta.id);
             Swal.fire({
               icon: "success",
               title: "Venta eliminada",
+              text: "Los productos almacenables han sido devueltos al stock.",
               background: "#18181b",
               color: "#fff",
-              timer: 2000,
+              timer: 2500,
               showConfirmButton: false,
             });
             this.obtenerVentas(this.currentPage, this.pageSize);

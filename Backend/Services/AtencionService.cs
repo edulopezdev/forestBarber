@@ -16,11 +16,17 @@ namespace backend.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<AtencionService> _logger;
+        private readonly IStockService _stockService;
 
-        public AtencionService(ApplicationDbContext context, ILogger<AtencionService> logger)
+        public AtencionService(
+            ApplicationDbContext context,
+            ILogger<AtencionService> logger,
+            IStockService stockService
+        )
         {
             _context = context;
             _logger = logger;
+            _stockService = stockService;
         }
 
         public async Task<IActionResult> CrearAtencionAsync(CrearAtencionDto dto, int barberoId)
@@ -83,8 +89,12 @@ namespace backend.Services
                                 }
                             );
                         }
-                        producto.Cantidad -= detalle.Cantidad;
-                        _context.ProductosServicios.Update(producto);
+                        //producto.Cantidad -= detalle.Cantidad;
+                        //_context.ProductosServicios.Update(producto);
+                        await _stockService.UpdateStockAsync(
+                            detalle.ProductoServicioId,
+                            detalle.Cantidad
+                        );
                     }
                 }
 
@@ -280,6 +290,18 @@ namespace backend.Services
             atencion.BarberoId = dto.BarberoId;
             atencion.Fecha = dto.Fecha;
 
+            // Sumar stock de los detalles eliminados
+            if (dto.DetallesEliminados != null)
+            {
+                foreach (var detalleEliminado in dto.DetallesEliminados)
+                {
+                    await _stockService.UpdateStockAsync(
+                        detalleEliminado.ProductoServicioId,
+                        -detalleEliminado.Cantidad
+                    ); // Cantidad negativa para sumar al stock
+                }
+            }
+
             _context.Entry(atencion).State = EntityState.Modified;
 
             try
@@ -314,7 +336,10 @@ namespace backend.Services
 
         public async Task<IActionResult> EliminarAtencion(int id)
         {
-            var atencion = await _context.Atencion.FindAsync(id);
+            var atencion = await _context
+                .Atencion.Include(a => a.DetalleAtencion)
+                .ThenInclude(d => d.ProductoServicio)
+                .FirstOrDefaultAsync(a => a.Id == id);
             if (atencion == null)
             {
                 return new NotFoundObjectResult(
@@ -338,6 +363,12 @@ namespace backend.Services
                         atencionId = id,
                     }
                 );
+            }
+
+            // Devolver stock de los productos y servicios
+            foreach (var detalle in atencion.DetalleAtencion)
+            {
+                await _stockService.UpdateStockAsync(detalle.ProductoServicioId, -detalle.Cantidad); // Cantidad negativa para sumar al stock
             }
 
             _context.Atencion.Remove(atencion);

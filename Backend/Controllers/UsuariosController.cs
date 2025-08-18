@@ -98,7 +98,7 @@ namespace backend.Controllers
                 {
                     Id = u.Id,
                     Nombre = u.Nombre!,
-                    Email = u.Email!,
+                    Email = u.Email == null ? null : u.Email,
                     Telefono = u.Telefono!,
                     Activo = u.Activo,
                     RolId = u.RolId,
@@ -226,7 +226,7 @@ namespace backend.Controllers
                 {
                     Id = u.Id,
                     Nombre = u.Nombre!,
-                    Email = u.Email!,
+                    Email = u.Email == null ? null : u.Email,
                     Telefono = u.Telefono!,
                     Activo = u.Activo,
                 })
@@ -355,7 +355,7 @@ namespace backend.Controllers
                 var usuario = new Usuario
                 {
                     Nombre = dto.Nombre,
-                    Email = dto.Email,
+                    Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim(),
                     Telefono = dto.Telefono,
                     Avatar = dto.Avatar,
                     RolId = dto.RolId,

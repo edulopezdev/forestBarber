@@ -18,7 +18,7 @@ namespace backend.Models
         [Range(0, 10000)]
         public decimal? Precio { get; set; } // Precio del producto o servicio
 
-        public bool? EsAlmacenable { get; set; } = false; // Indica si se puede almacenar (por defecto `false`)
+    public bool EsAlmacenable { get; set; } = false; // Indica si se puede almacenar (por defecto `false`)
 
         public int? Cantidad { get; set; } = 0; // Stock disponible, por defecto `0`
     }

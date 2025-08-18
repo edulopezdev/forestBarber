@@ -496,8 +496,7 @@ namespace backend.Controllers
                 var servicios = detalles
                     .Where(d =>
                         d.ProductoServicio != null
-                        && d.ProductoServicio.EsAlmacenable.HasValue
-                        && !d.ProductoServicio.EsAlmacenable.Value
+                        && !d.ProductoServicio.EsAlmacenable
                     )
                     .Sum(d => d.Cantidad * d.PrecioUnitario);
 
@@ -505,8 +504,7 @@ namespace backend.Controllers
                 var productos = detalles
                     .Where(d =>
                         d.ProductoServicio != null
-                        && d.ProductoServicio.EsAlmacenable.HasValue
-                        && d.ProductoServicio.EsAlmacenable.Value
+                        && d.ProductoServicio.EsAlmacenable
                     )
                     .Sum(d => d.Cantidad * d.PrecioUnitario);
 
@@ -618,14 +616,14 @@ namespace backend.Controllers
                 // Total de servicios (cortes) del usuario o global
                 var totalServicios = detalles
                     .Where(d =>
-                        d.ProductoServicio != null && d.ProductoServicio.EsAlmacenable == false
+                        d.ProductoServicio != null && !d.ProductoServicio.EsAlmacenable
                     )
                     .Sum(d => d.Cantidad * d.PrecioUnitario);
 
                 // Total de productos (ventas)
                 var totalProductos = detalles
                     .Where(d =>
-                        d.ProductoServicio != null && d.ProductoServicio.EsAlmacenable == true
+                        d.ProductoServicio != null && d.ProductoServicio.EsAlmacenable
                     )
                     .Sum(d => d.Cantidad * d.PrecioUnitario);
 

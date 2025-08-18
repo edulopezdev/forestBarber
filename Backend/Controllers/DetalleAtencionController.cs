@@ -14,19 +14,22 @@ namespace backend.Controllers
     [ApiController]
     public class DetalleAtencionController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-        private readonly ILogger<DetalleAtencionController> _logger;
-        private readonly IVentaService _ventaService;
+    private readonly ApplicationDbContext _context;
+    private readonly ILogger<DetalleAtencionController> _logger;
+    private readonly IVentaService _ventaService;
+    private readonly IStockService _stockService;
 
         public DetalleAtencionController(
             ApplicationDbContext context,
             ILogger<DetalleAtencionController> logger,
-            IVentaService ventaService
+            IVentaService ventaService,
+            IStockService stockService
         )
         {
             _context = context;
             _logger = logger;
             _ventaService = ventaService;
+            _stockService = stockService;
         }
 
         // GET: api/detalleatencion
@@ -184,7 +187,9 @@ namespace backend.Controllers
                     NombreProducto = d.ProductoServicio?.Nombre ?? "Producto/Servicio borrado",
                     Cantidad = d.Cantidad,
                     PrecioUnitario = d.PrecioUnitario,
+                    Subtotal = d.Cantidad * d.PrecioUnitario,
                     Observacion = d.Observacion,
+                    EsAlmacenable = d.ProductoServicio != null ? d.ProductoServicio.EsAlmacenable : false,
                 })
                 .ToList();
 
@@ -294,8 +299,8 @@ namespace backend.Controllers
                             : 0;
                         if (original.Cantidad > nuevaCantidad)
                         {
-                            original.ProductoServicio.Cantidad += original.Cantidad - nuevaCantidad;
-                            _context.ProductosServicios.Update(original.ProductoServicio);
+                            int cantidadADevolver = original.Cantidad - nuevaCantidad;
+                            await _stockService.DevolverStockAsync(original.ProductoServicioId, cantidadADevolver);
                         }
                     }
                 }
@@ -329,7 +334,8 @@ namespace backend.Controllers
                         if (nuevo.Cantidad > cantidadOriginal)
                         {
                             int cantidadARestar = nuevo.Cantidad - cantidadOriginal;
-                            if (producto.Cantidad < cantidadARestar)
+                            var exito = await _stockService.UpdateStockAsync(nuevo.ProductoServicioId, cantidadARestar);
+                            if (!exito)
                             {
                                 await transaction.RollbackAsync();
                                 return new BadRequestObjectResult(
@@ -341,8 +347,6 @@ namespace backend.Controllers
                                     }
                                 );
                             }
-                            producto.Cantidad -= cantidadARestar;
-                            _context.ProductosServicios.Update(producto);
                         }
                     }
                 }
@@ -486,7 +490,10 @@ namespace backend.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDetalleAtencion(int id)
         {
-            var detalleAtencion = await _context.DetalleAtencion.FindAsync(id);
+
+            var detalleAtencion = await _context.DetalleAtencion
+                .Include(d => d.ProductoServicio)
+                .FirstOrDefaultAsync(d => d.Id == id);
             if (detalleAtencion == null)
             {
                 return NotFound(
@@ -497,6 +504,12 @@ namespace backend.Controllers
                         message = "El detalle de atención no existe.",
                     }
                 );
+            }
+
+            // Devolver stock si corresponde
+            if (detalleAtencion.ProductoServicio != null && detalleAtencion.ProductoServicio.EsAlmacenable)
+            {
+                await _stockService.DevolverStockAsync(detalleAtencion.ProductoServicioId, detalleAtencion.Cantidad);
             }
 
             var atencionExiste = await _context.Atencion.AnyAsync(a =>

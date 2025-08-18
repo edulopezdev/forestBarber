@@ -33,7 +33,7 @@ namespace backend.Controllers
         )
         {
             // creamos una consulta inicial para obtener los productos almacenables que esten activos
-            var query = _context.ProductosServicios.Where(p => p.Activo && p.EsAlmacenable == true);
+            var query = _context.ProductosServicios.Where(p => p.Activo && p.EsAlmacenable);
 
             // Filtros seguros
             if (!string.IsNullOrEmpty(nombre)) // verificamos si el nombre no está vacío
@@ -150,7 +150,7 @@ namespace backend.Controllers
         )
         {
             var query = _context.ProductosServicios.Where(p =>
-                p.Activo && !(p.EsAlmacenable ?? false)
+                p.Activo && !p.EsAlmacenable
             );
 
             // Aplicar ordenamiento
@@ -262,7 +262,7 @@ namespace backend.Controllers
                     Id = p.Id,
                     Nombre = p.Nombre ?? "Desconocido", // Valor por defecto
                     Precio = p.Precio ?? 0m, // Valor por defecto
-                    EsAlmacenable = p.EsAlmacenable ?? false, // Valor por defecto
+                    EsAlmacenable = p.EsAlmacenable, // Valor por defecto
                 })
                 .ToList();
 
@@ -326,7 +326,7 @@ namespace backend.Controllers
             if (string.IsNullOrEmpty(dto.Nombre))
                 return BadRequest(new { status = 400, message = "El nombre es obligatorio." });
 
-            if (!(dto.EsAlmacenable ?? false) && dto.Cantidad > 0)
+            if (!dto.EsAlmacenable && dto.Cantidad > 0)
                 return BadRequest(
                     new { status = 400, message = "Un servicio no puede tener cantidad > 0." }
                 );
@@ -346,7 +346,7 @@ namespace backend.Controllers
             if (dto.Imagen != null && dto.Imagen.Length > 0)
             {
                 // Carpeta base según tipo (producto o servicio)
-                string baseFolder = (producto.EsAlmacenable ?? false) ? "productos" : "servicios";
+                string baseFolder = producto.EsAlmacenable ? "productos" : "servicios";
 
                 // Ruta completa: wwwroot/images/productos/{id} o wwwroot/images/servicios/{id}
                 var uploadsPath = Path.Combine(
@@ -410,7 +410,7 @@ namespace backend.Controllers
                 );
             }
 
-            if (!(dto.EsAlmacenable ?? false) && dto.Cantidad > 0)
+            if (!dto.EsAlmacenable && dto.Cantidad > 0)
             {
                 return BadRequest(
                     new
@@ -437,7 +437,7 @@ namespace backend.Controllers
             if (dto.Imagen != null && dto.Imagen.Length > 0)
             {
                 string baseFolder =
-                    (productoServicio.EsAlmacenable ?? false) ? "productos" : "servicios";
+                    productoServicio.EsAlmacenable ? "productos" : "servicios";
                 var carpetaPath = Path.Combine(
                     Directory.GetCurrentDirectory(),
                     "wwwroot",

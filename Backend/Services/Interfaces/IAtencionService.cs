@@ -1,7 +1,7 @@
+using System.Threading.Tasks;
 using backend.Dtos;
 using backend.Models;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 
 namespace backend.Services.Interfaces
 {
