@@ -1,7 +1,6 @@
 <template>
   <div v-if="visible" class="loading-spinner-overlay">
     <div class="spinner"></div>
-    <p v-if="text" class="loading-text">{{ text }}</p>
   </div>
 </template>
 
@@ -19,6 +18,7 @@ const props = defineProps({
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 9999;
   background: rgba(24,24,27,0.85);
+  backdrop-filter: blur(6px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -39,10 +39,4 @@ const props = defineProps({
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-.loading-text {
-  margin-top: 1.5rem;
-  font-size: 1.2rem;
-  color: #28a745;
-  font-weight: bold;
-  letter-spacing: 1px;
-}
+

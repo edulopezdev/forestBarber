@@ -13,6 +13,81 @@ namespace backend.Services
 {
     public class StockService : IStockService
     {
+        /// <summary>
+        /// Envía un solo mail con la lista de productos almacenables con bajo stock (solo si hay alguno).
+        /// </summary>
+        public async Task SendLowStockSummaryEmailAsync()
+        {
+            var lowStockThresholdString = _configuration["StockSettings:LowStockThreshold"] ?? "5";
+            if (!int.TryParse(lowStockThresholdString, out int lowStockThreshold))
+            {
+                _logger.LogWarning(
+                    "LowStockThreshold not configured correctly. Using default value of 5."
+                );
+                lowStockThreshold = 5;
+            }
+
+            var productosBajoStock = await _context
+                .ProductosServicios.Where(p =>
+                    p.EsAlmacenable && (p.Cantidad ?? 0) <= lowStockThreshold
+                )
+                .ToListAsync();
+
+            if (productosBajoStock.Count == 0)
+            {
+                _logger.LogInformation(
+                    "No hay productos con bajo stock. No se enviará mail de resumen."
+                );
+                return;
+            }
+
+            var body = "Los siguientes productos tienen stock bajo y requieren reposición:\n\n";
+            foreach (var p in productosBajoStock)
+            {
+                body += $"- {p.Nombre} (Stock actual: {p.Cantidad ?? 0})\n";
+            }
+
+            var email = new MimeMessage();
+            email.From.Add(MailboxAddress.Parse(_configuration["EmailSettings:SenderEmail"]));
+            email.To.Add(MailboxAddress.Parse(_configuration["EmailSettings:RecipientEmail"]));
+            email.Subject = "Alerta de productos con bajo stock";
+            email.Body = new TextPart("plain") { Text = body };
+
+            try
+            {
+                using var smtp = new SmtpClient();
+                string? smtpPortString = _configuration["EmailSettings:SmtpPort"];
+                if (
+                    string.IsNullOrWhiteSpace(smtpPortString)
+                    || !int.TryParse(smtpPortString, out int smtpPort)
+                )
+                {
+                    _logger.LogError(
+                        "Invalid or missing SmtpPort configuration. Email sending aborted."
+                    );
+                    return;
+                }
+
+                smtp.Connect(
+                    _configuration["EmailSettings:SmtpServer"],
+                    smtpPort,
+                    SecureSocketOptions.StartTls
+                );
+                smtp.Authenticate(
+                    _configuration["EmailSettings:SmtpUsername"],
+                    _configuration["EmailSettings:SmtpPassword"]
+                );
+                smtp.Send(email);
+                smtp.Disconnect(true);
+
+                _logger.LogInformation("Resumen de productos con bajo stock enviado por mail.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error enviando mail de resumen de productos con bajo stock.");
+            }
+        }
+
         private readonly ApplicationDbContext _context;
         private readonly ILogger<StockService> _logger;
         private readonly IConfiguration _configuration;
@@ -121,8 +196,30 @@ namespace backend.Services
                 return;
             }
 
+            // Solo productos almacenables
+            if (!producto.EsAlmacenable)
+            {
+                _logger.LogInformation(
+                    $"No se envía alerta de stock para servicios o productos no almacenables. ProductoServicioId: {productoServicioId}"
+                );
+                return;
+            }
+
             if (!await IsStockLowAsync(productoServicioId))
             {
+                return;
+            }
+
+            // Verificar si la caja del día está cerrada
+            var hoy = DateTime.Today;
+            var cierreHoy = await _context.CierresDiarios.FirstOrDefaultAsync(c =>
+                c.FechaCierre.Date == hoy && c.Cerrado
+            );
+            if (cierreHoy == null)
+            {
+                _logger.LogInformation(
+                    $"No se envía alerta de stock porque la caja de hoy no está cerrada. ProductoServicioId: {productoServicioId}"
+                );
                 return;
             }
 

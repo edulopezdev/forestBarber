@@ -16,16 +16,19 @@ namespace backend.Services
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly ILogger<CierreDiarioService> _logger;
+        private readonly IStockService _stockService;
 
         public CierreDiarioService(
             ApplicationDbContext context,
             IConfiguration configuration,
-            ILogger<CierreDiarioService> logger
+            ILogger<CierreDiarioService> logger,
+            IStockService stockService
         )
         {
             _context = context;
             _configuration = configuration;
             _logger = logger;
+            _stockService = stockService;
         }
 
         public async Task<CierreDiario> CrearCierreAsync(CierreDiario cierre)
@@ -68,6 +71,8 @@ namespace backend.Services
                 throw;
             }
 
+            // Enviar mail de bajo stock al cerrar la caja
+            await _stockService.SendLowStockSummaryEmailAsync();
             return cierre;
         }
 
@@ -97,6 +102,10 @@ namespace backend.Services
             cierre.Cerrado = true;
             _context.CierresDiarios.Update(cierre);
             await _context.SaveChangesAsync();
+
+            // Enviar mail de bajo stock al cerrar la caja
+            await _stockService.SendLowStockSummaryEmailAsync();
+
             return true;
         }
 

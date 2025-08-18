@@ -37,7 +37,7 @@ export default {
 
 <template>
   <Toast />
-  <LoadingSpinner :visible="isLoading" text="Cargando..." />
+  <LoadingSpinner v-if="isLoading" :visible="isLoading" />
   <AppTopbar class="topbar" v-if="isAuthenticated" />
 
   <div class="layout">

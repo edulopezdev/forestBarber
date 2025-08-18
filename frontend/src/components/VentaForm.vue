@@ -11,6 +11,7 @@
       <AutoComplete
         v-model="formulario.cliente"
         :suggestions="clientesFiltrados"
+        field="nombre"
         @complete="buscarClientes"
         placeholder="Selecciona un cliente"
         :force-selection="true"
@@ -427,11 +428,15 @@ export default {
       this.cerrarNotaModal();
     },
     resaltarCoincidenciaDinamica(nombreCompleto) {
-  const query = (this.busquedaCliente || "").trim();
-  if (!query) return nombreCompleto;
-  // Resalta todas las coincidencias, insensible a mayúsculas/minúsculas
-  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  return nombreCompleto.replace(regex, '<span class="highlight">$1</span>');
+      const query = (this.busquedaCliente || "").trim();
+      if (!query) return nombreCompleto;
+      // Resalta coincidencias al inicio de cualquier palabra, solo las letras coincidentes
+      return nombreCompleto.split(' ').map(word => {
+        if (word.toLowerCase().startsWith(query.toLowerCase())) {
+          return `<span class="highlight">${word.substring(0, query.length)}</span>${word.substring(query.length)}`;
+        }
+        return word;
+      }).join(' ');
     },
   },
 };
