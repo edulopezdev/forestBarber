@@ -3,7 +3,7 @@
     <!-- Nombre o logo de la app -->
     <img
       src="../assets/images/logo.png"
-      alt="Logo Barbería López"
+      alt="Logo Forest Barber"
       class="app-logo"
     />
     <ul class="menu-list">
