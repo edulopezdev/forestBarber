@@ -21,6 +21,8 @@ export default {
   logout() {
     sessionStorage.removeItem(KEY_TOKEN);
     sessionStorage.removeItem(KEY_USER);
+    // Limpiar también el timer de sesión
+    localStorage.removeItem('session_timer_expiry');
     window.location.href = "/login";
   },
 

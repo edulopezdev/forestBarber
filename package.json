@@ -11,6 +11,7 @@
     "lottie-web": "^5.13.0",
     "primeicons": "^7.0.0",
     "primevue": "^3.44.0",
+    "sweetalert2": "^11.22.5",
     "vue3-lottie": "^3.3.1"
   }
 }

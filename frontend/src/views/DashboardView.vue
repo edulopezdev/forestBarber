@@ -149,13 +149,15 @@
         <Card class="chart-card half-width-card">
           <template #title>Métodos de Pago</template>
           <template #content>
-            <Chart
-              type="pie"
-              :data="chartData"
-              :options="chartOptions"
-              class="admin-chart"
-              style="height: 350px; width: 100%"
-            />
+            <div class="chart-container">
+              <Chart
+                type="pie"
+                :data="chartData"
+                :options="chartOptions"
+                class="admin-chart pie-chart"
+                style="height: 350px; width: 100%"
+              />
+            </div>
           </template>
         </Card>
         <Card class="chart-card half-width-card">
@@ -347,6 +349,7 @@ async function cargarFacturacion() {
 
       chartOptions.value = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: {
             position: "right",
@@ -367,6 +370,14 @@ async function cargarFacturacion() {
             font: { weight: "bold", size: 12 },
           },
         },
+        layout: {
+          padding: {
+            left: 10,
+            right: 10,
+            top: 10,
+            bottom: 10
+          }
+        }
       };
     }
   } catch (error) {
@@ -692,6 +703,25 @@ watch([mes, anio], () => {
   height: 180px !important;
   min-height: 120px !important;
   max-height: 220px !important;
+}
+
+.chart-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.pie-chart {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.pie-chart canvas {
+  max-width: 100% !important;
+  height: auto !important;
 }
 </style>
 

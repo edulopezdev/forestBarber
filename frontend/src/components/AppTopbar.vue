@@ -3,18 +3,21 @@
     <Toolbar class="toolbar">
       <template #start>
         <div class="topbar-left">
-          <!-- Logo u otros elementos -->
+          <SessionTimer v-if="usuarioLogueado" />
         </div>
       </template>
 
       <template #end>
         <div v-if="usuarioLogueado" class="usuario-info">
           <div class="usuario-datos">
-            <img :src="usuarioLogueado.avatarUrl" alt="Avatar" class="avatar" />
-
+            <img 
+              :src="avatarUrl" 
+              :alt="`Avatar de ${usuarioLogueado.nombre || usuarioLogueado.email}`" 
+              class="avatar"
+              @error="handleImageError"
+            />
             <span class="nombre-usuario">{{ usuarioLogueado.email }}</span>
           </div>
-
           <Button
             icon="pi pi-sign-out"
             class="logout-btn"
@@ -31,11 +34,14 @@
 </template>
 
 <script>
+
+
 import Toolbar from "primevue/toolbar";
 import Button from "primevue/button";
 import authService from "../services/auth.service";
 import { confirmDialog } from "../utils/confirmDialog";
 import Swal from "sweetalert2";
+import SessionTimer from "./SessionTimer.vue";
 
 export default {
   name: "AppTopbar",
@@ -45,7 +51,8 @@ export default {
   },
   data() {
     return {
-      // No usamos data, lo movimos a computed
+      defaultAvatar: '/img/default-avatar.svg', // Avatar por defecto más profesional
+      imageError: false
     };
   },
   computed: {
@@ -53,20 +60,27 @@ export default {
       const usuario = authService.getUser();
       if (!usuario) return null;
 
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
-      const imageBaseUrl = baseUrl.replace(/\/api\/?$/, ""); // quitar /api
-
-      const avatar =
-        usuario.avatar && usuario.avatar.trim()
-          ? `${imageBaseUrl}/${usuario.avatar.replace(/^\//, "")}`
-          : "/avatars/no_avatar.jpg";
-
       return {
         ...usuario,
-        avatarUrl: avatar,
       };
+    },
+    avatarUrl() {
+      if (this.imageError) {
+        return this.defaultAvatar;
+      }
+
+      if (!this.usuarioLogueado) return this.defaultAvatar;
+
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      const imageBaseUrl = baseUrl.replace(/\/api\/?$/, ""); // quitar /api
+
+      // Si el usuario no tiene avatar o está vacío, usar imagen por defecto
+      if (!this.usuarioLogueado.avatar || !this.usuarioLogueado.avatar.trim()) {
+        return this.defaultAvatar;
+      }
+
+      // Construir URL del avatar del backend
+      return `${imageBaseUrl}/${this.usuarioLogueado.avatar.replace(/^\//, "")}`;
     },
   },
   watch: {
@@ -76,6 +90,10 @@ export default {
     },
   },
   methods: {
+    handleImageError() {
+      console.log('Error al cargar imagen de avatar, usando imagen por defecto');
+      this.imageError = true;
+    },
     async logout() {
       const result = await confirmDialog({
         title: "Cerrar sesión",
@@ -144,6 +162,15 @@ export default {
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #4a90e2;
+  background-color: #f8f9fa;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.avatar:hover {
+  transform: scale(1.05);
+  border-color: #357abd;
+  box-shadow: 0 4px 8px rgba(74, 144, 226, 0.3);
 }
 
 .logout-btn {
