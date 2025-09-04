@@ -2,6 +2,9 @@
   <div class="clientes-container">
     <Toast />
 
+    <!-- NOTA: Modal de nueva funcionalidad comentado temporalmente -->
+    <!-- Descomenta esta sección si quieres mostrar avisos de nuevas funcionalidades -->
+    <!--
     <NewFeatureNotification
       featureKey="nueva-funcion-dashboard-v1"
       title="¡Nuevo módulo: Caja!"
@@ -9,6 +12,7 @@
       top="30%"
       left="50%"
     />
+    -->
 
     <!-- Título y filtros en la misma línea -->
     <div class="dashboard-title-row">
@@ -183,7 +187,8 @@ import Chart from "primevue/chart";
 import Card from "primevue/card";
 import Toast from "primevue/toast";
 import FacturacionService from "@/services/FacturacionService";
-import NewFeatureNotification from "@/components/NewFeatureNotification.vue";
+// NOTA: Import comentado temporalmente para el modal de nuevas funcionalidades
+// import NewFeatureNotification from "@/components/NewFeatureNotification.vue";
 
 const facturacion = ref(null);
 const chartData = ref({});
